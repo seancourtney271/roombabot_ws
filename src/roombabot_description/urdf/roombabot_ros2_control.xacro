@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="roombabot">
+
+    <ros2_control name="RobotSystem" type="system">
+
+        <!-- ros2_control Gazebo -->
+        <xacro:if value="$(arg is_sim)">
+            <!-- ROS 2 Humble -->
+            <xacro:if value="$(arg is_ignition)">
+                <hardware>
+                    <plugin>ign_ros2_control/IgnitionSystem</plugin>
+                </hardware>
+            </xacro:if>
+
+            <!-- ROS 2 Iron or above -->
+            <xacro:unless value="$(arg is_ignition)">
+                <hardware>
+                    <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+                </hardware>
+            </xacro:unless>
+        </xacro:if>
+
+        <!-- ros2_control Real Robot -->
+        <xacro:unless value="$(arg is_sim)">
+            <hardware>
+                <plugin>roombabot_firmware/RoombabotInterface</plugin>
+                <!-- udev symlink, never /dev/ttyUSB*: two ESP32s plus the RPLIDAR
+                     share the bus and the kernel's enumeration order is not stable
+                     across boots. -->
+                <param name="port">$(arg motor_port)</param>
+                <!-- Ignored by a native-USB ESP32 (a CDC endpoint has no real baud
+                     rate) but still has to be a value termios accepts, and it
+                     matters if this link ever moves to a hardware UART. -->
+                <param name="baud_rate">921600</param>
+                <!-- Counts per full wheel revolution, after gearing and whatever
+                     edge-counting mode the firmware uses. No default in the plugin:
+                     getting this wrong scales all odometry by a constant, which
+                     produces a plausible-looking but wrong map rather than an
+                     obvious failure. -->
+                <param name="encoder_ticks_per_revolution">$(arg encoder_ticks_per_revolution)</param>
+                <!-- How long MotorState may go missing before the interface reports
+                     an error. Generous relative to the 100 Hz frame rate, because a
+                     momentarily busy Pi dropping a few frames is not a hardware
+                     fault. -->
+                <param name="state_timeout">0.5</param>
+            </hardware>
+        </xacro:unless>
+
+        <!-- ros2_control Common Interfaces -->
+        <!-- Limits are wheel angular velocity in rad/s. At a 0.036 m wheel radius,
+             15 rad/s is ~0.54 m/s at the rim, comfortably above the 0.4 m/s cap the
+             diff_drive_controller applies to the base. -->
+        <joint name="wheel_right_joint">
+            <command_interface name="velocity">
+              <param name="min">-15</param>
+              <param name="max">15</param>
+            </command_interface>
+            <state_interface name="position" />
+            <state_interface name="velocity" />
+        </joint>
+
+        <joint name="wheel_left_joint">
+            <command_interface name="velocity">
+              <param name="min">-15</param>
+              <param name="max">15</param>
+            </command_interface>
+            <state_interface name="position" />
+            <state_interface name="velocity" />
+        </joint>
+
+    </ros2_control>
+
+</robot>

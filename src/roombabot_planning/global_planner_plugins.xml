@@ -1,0 +1,6 @@
+<class_libraries>
+    <library path="dijkstra_planner">
+        <class type="roombabot_planning::DijkstraPlanner" base_class_type="nav2_core::GlobalPlanner">
+        </class>
+    </library>
+</class_libraries>

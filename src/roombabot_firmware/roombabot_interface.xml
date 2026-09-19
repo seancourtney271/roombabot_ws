@@ -1,0 +1,10 @@
+<library path="roombabot_firmware">
+    <class name="roombabot_firmware/RoombabotInterface"
+      type="roombabot_firmware::RoombabotInterface"
+      base_class_type="hardware_interface::SystemInterface"
+    >
+      <description>
+        Roombabot Hardware Interface
+      </description>
+    </class>
+  </library>

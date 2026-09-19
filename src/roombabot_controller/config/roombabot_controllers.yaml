@@ -1,0 +1,82 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 100 # Hz
+
+    roombabot_controller:
+      type: diff_drive_controller/DiffDriveController
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    simple_velocity_controller:
+      type: velocity_controllers/JointGroupVelocityController
+
+
+roombabot_controller:
+  ros__parameters:
+    type        : diff_drive_controller/DiffDriveController
+    use_stamped_vel: true
+    left_wheel_names  : ['wheel_left_joint']
+    right_wheel_names : ['wheel_right_joint']
+
+    publish_rate: 50.0               # default: 50
+    pose_covariance_diagonal : [0.001, 0.001, 1.0e-3, 1.0e-3, 1.0e-3, 0.01]
+    twist_covariance_diagonal: [0.001, 0.001, 1.0e-3, 1.0e-3, 1.0e-3, 0.01]
+
+    # Roomba 600 / Create 2 geometry -- must match the xacro properties of the same
+    # name in roombabot_description/urdf/roombabot.urdf.xacro.
+    wheel_separation : 0.235
+    wheel_radius : 0.036
+
+    wheel_separation_multiplier: 1.0
+    left_wheel_radius_multiplier: 1.0
+    right_wheel_radius_multiplier: 1.0
+
+    # Velocity commands timeout [s], default 0.5
+    cmd_vel_timeout: 0.5
+
+    # Base frame_id
+    base_frame_id: base_footprint #default: base_link
+
+    # Publish limited velocity
+    publish_limited_velocity: true
+
+    # Publish wheel data
+    publish_wheel_data: true
+
+    # Publish to TF directly or not
+    enable_odom_tf: false # TODO VALDIATE THIS IS NECESSARY
+
+    # Velocity and acceleration limits
+    # Whenever a min_* is unspecified, default to -max_*
+    linear:
+      x:
+        has_velocity_limits    : true
+        # A 0.34 m platform on 0.072 m wheels: 0.7 m/s was inherited from the much
+        # lighter bumperbot and overruns the lidar's usable reaction distance here.
+        max_velocity           : 0.4  # m/s
+        min_velocity           : -0.4 # m/s
+        has_acceleration_limits: true
+        max_acceleration       : 0.6  # m/s^2
+        min_acceleration       : -0.6 # m/s^2
+        has_jerk_limits        : false
+        max_jerk               : 5.0  # m/s^3
+    angular:
+      z:
+        has_velocity_limits    : true
+        # 8.5 rad/s is ~81 rpm of body spin -- far past what the scan matcher can
+        # track, and a large part of why in-place search rotations looked unstable.
+        max_velocity           : 2.0  # rad/s
+        min_velocity           : -2.0  # rad/s
+        has_acceleration_limits: true
+        max_acceleration       : 3.0  # rad/s^2
+        min_acceleration       : -3.0   # rad/s^2
+        has_jerk_limits        : false
+        max_jerk               : 2.5  # rad/s^3
+
+
+simple_velocity_controller:
+  ros__parameters:
+    joints:
+      - wheel_left_joint
+      - wheel_right_joint

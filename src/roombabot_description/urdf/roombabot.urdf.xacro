@@ -1,0 +1,310 @@
+<?xml version="1.0"?>
+
+<robot name="roombabot" xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <!-- Start GZ or Ignition depending on ROS 2 Version -->
+  <xacro:arg name="is_ignition" default="true"/>
+
+  <!-- Load Simulated or Real Hardware Interfaces -->
+  <xacro:arg name="is_sim" default="true"/>
+
+  <!-- Real-hardware only: passed through to the ros2_control plugin. -->
+  <xacro:arg name="motor_port" default="/dev/esp32_motor"/>
+  <xacro:arg name="encoder_ticks_per_revolution" default="1440.0"/>
+
+  <!-- ===================================================================== -->
+  <!-- Chassis dimensions                                                     -->
+  <!--                                                                        -->
+  <!-- Roomba 600-series / iRobot Create 2 published figures. Every piece of  -->
+  <!-- geometry below is derived from these, so re-measuring the real chassis -->
+  <!-- means editing this block and nothing else. Two values are also         -->
+  <!-- duplicated outside this file and must be kept in step:                 -->
+  <!--                                                                        -->
+  <!--   wheel_radius / wheel_separation                                      -->
+  <!--       -> roombabot_controller/config/roombabot_controllers.yaml        -->
+  <!--       -> roombabot_controller/launch/controller.launch.py defaults     -->
+  <!--   body_radius (+ margin)                                               -->
+  <!--       -> robot_radius in roombabot_navigation/config/costmap.yaml      -->
+  <!--          and planner_server.yaml                                       -->
+  <!-- ===================================================================== -->
+
+  <!-- 340 mm across, 92 mm tall overall. -->
+  <xacro:property name="body_diameter"   value="0.340"/>
+  <xacro:property name="body_radius"     value="${body_diameter/2.0}"/>
+  <!-- Underside of the shell above the floor; the shell itself makes up the rest
+       of the 92 mm total height. -->
+  <xacro:property name="body_clearance"  value="0.008"/>
+  <xacro:property name="body_height"     value="0.084"/>
+  <xacro:property name="body_mass"       value="3.0"/>
+
+  <!-- 72 mm diameter drive wheels on a 235 mm track. -->
+  <xacro:property name="wheel_radius"     value="0.036"/>
+  <xacro:property name="wheel_width"      value="0.025"/>
+  <xacro:property name="wheel_separation" value="0.235"/>
+  <xacro:property name="wheel_mass"       value="0.15"/>
+
+  <!-- A real Roomba has one front caster; the rear one here exists so the body
+       cannot tip backwards in simulation. Both are frictionless spheres. -->
+  <xacro:property name="caster_radius"   value="0.012"/>
+  <xacro:property name="caster_offset_x" value="0.130"/>
+  <xacro:property name="caster_mass"     value="0.01"/>
+
+  <!-- Heights measured from the floor, converted to base_link-relative below.
+       laser_height is the *scan plane*, not the sensor's mounting face: an
+       RPLIDAR A1 bolted to the top of the shell puts its plane roughly 30 mm
+       higher again. -->
+  <xacro:property name="laser_height" value="0.122"/>
+  <xacro:property name="laser_mass"   value="0.17"/>
+  <xacro:property name="imu_height"   value="0.060"/>
+  <xacro:property name="imu_mass"     value="0.02"/>
+
+  <!-- base_link sits at the wheel axle, so every child offset below is relative
+       to axle height rather than to the floor. -->
+  <xacro:property name="base_height" value="${wheel_radius}"/>
+
+  <!-- ===================================================================== -->
+  <!-- Inertia helpers                                                        -->
+  <!-- ===================================================================== -->
+
+  <xacro:macro name="cylinder_inertia_z" params="mass radius length">
+    <inertia ixx="${mass*(3.0*radius*radius + length*length)/12.0}" ixy="0.0" ixz="0.0"
+             iyy="${mass*(3.0*radius*radius + length*length)/12.0}" iyz="0.0"
+             izz="${mass*radius*radius/2.0}"/>
+  </xacro:macro>
+
+  <!-- Wheels spin about Y, so that is the axis carrying the (1/2)mr^2 term. -->
+  <xacro:macro name="cylinder_inertia_y" params="mass radius length">
+    <inertia ixx="${mass*(3.0*radius*radius + length*length)/12.0}" ixy="0.0" ixz="0.0"
+             iyy="${mass*radius*radius/2.0}" iyz="0.0"
+             izz="${mass*(3.0*radius*radius + length*length)/12.0}"/>
+  </xacro:macro>
+
+  <xacro:macro name="sphere_inertia" params="mass radius">
+    <inertia ixx="${2.0*mass*radius*radius/5.0}" ixy="0.0" ixz="0.0"
+             iyy="${2.0*mass*radius*radius/5.0}" iyz="0.0"
+             izz="${2.0*mass*radius*radius/5.0}"/>
+  </xacro:macro>
+
+  <!-- ===================================================================== -->
+  <!-- Materials                                                              -->
+  <!-- ===================================================================== -->
+
+  <material name="roomba_grey">
+    <color rgba="0.25 0.25 0.27 1"/>
+  </material>
+  <material name="black">
+    <color rgba="0.05 0.05 0.05 1"/>
+  </material>
+  <material name="blue">
+    <color rgba="0 0 1 1"/>
+  </material>
+  <material name="silver">
+    <color rgba="0.79 0.82 0.93 1"/>
+  </material>
+  <material name="dark_grey">
+    <color rgba="0.3 0.3 0.3 1"/>
+  </material>
+
+  <!-- Include Gazebo Parameters -->
+  <xacro:include filename="$(find roombabot_description)/urdf/roombabot_gazebo.xacro" />
+
+  <!-- Include ros2_control Plugins -->
+  <xacro:include filename="$(find roombabot_description)/urdf/roombabot_ros2_control.xacro" />
+
+  <!-- ===================================================================== -->
+  <!-- Links                                                                  -->
+  <!-- ===================================================================== -->
+
+  <link name="base_footprint"/>
+
+  <link name="base_link">
+    <inertial>
+      <origin xyz="0 0 ${body_clearance + body_height/2.0 - base_height}" rpy="0 0 0"/>
+      <mass value="${body_mass}"/>
+      <xacro:cylinder_inertia_z mass="${body_mass}" radius="${body_radius}" length="${body_height}"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 ${body_clearance + body_height/2.0 - base_height}" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="${body_radius}" length="${body_height}"/>
+      </geometry>
+      <material name="roomba_grey"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 ${body_clearance + body_height/2.0 - base_height}" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="${body_radius}" length="${body_height}"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="base_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 ${base_height}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Marks the front of an otherwise rotationally symmetric shell, so heading is
+       readable at a glance in RViz/Foxglove. Massless and collision-free. -->
+  <link name="front_marker_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.02 0.06 0.01"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+  </link>
+
+  <joint name="front_marker_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="front_marker_link"/>
+    <origin xyz="${body_radius - 0.015} 0 ${body_clearance + body_height - base_height}" rpy="0 0 0"/>
+  </joint>
+
+  <link name="wheel_left_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="${pi/2.0} 0 0"/>
+      <mass value="${wheel_mass}"/>
+      <xacro:cylinder_inertia_y mass="${wheel_mass}" radius="${wheel_radius}" length="${wheel_width}"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="${pi/2.0} 0 0"/>
+      <geometry>
+        <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="${pi/2.0} 0 0"/>
+      <geometry>
+        <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="wheel_left_joint" type="continuous">
+    <origin xyz="0 ${wheel_separation/2.0} 0" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="wheel_left_link"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <link name="wheel_right_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="${pi/2.0} 0 0"/>
+      <mass value="${wheel_mass}"/>
+      <xacro:cylinder_inertia_y mass="${wheel_mass}" radius="${wheel_radius}" length="${wheel_width}"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="${pi/2.0} 0 0"/>
+      <geometry>
+        <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="${pi/2.0} 0 0"/>
+      <geometry>
+        <cylinder radius="${wheel_radius}" length="${wheel_width}"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="wheel_right_joint" type="continuous">
+    <origin xyz="0 ${-wheel_separation/2.0} 0" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="wheel_right_link"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <xacro:macro name="caster" params="name x">
+    <link name="caster_${name}_link">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="${caster_mass}"/>
+        <xacro:sphere_inertia mass="${caster_mass}" radius="${caster_radius}"/>
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <sphere radius="${caster_radius}"/>
+        </geometry>
+        <material name="silver"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <sphere radius="${caster_radius}"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="caster_${name}_joint" type="fixed">
+      <origin xyz="${x} 0 ${caster_radius - base_height}" rpy="0 0 0"/>
+      <parent link="base_link"/>
+      <child link="caster_${name}_link"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:caster name="front" x="${caster_offset_x}"/>
+  <xacro:caster name="rear"  x="${-caster_offset_x}"/>
+
+  <link name="imu_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="${imu_mass}"/>
+      <xacro:cylinder_inertia_z mass="${imu_mass}" radius="0.01" length="0.005"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.021 0.016 0.003"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+  </link>
+
+  <!-- The MPU6050 now hangs off esp32_imu rather than the Pi's I2C bus, but this
+       frame still has to describe where the chip physically sits, since that is
+       what the gyro/accel axes are expressed in. The ESP32 is responsible for
+       rotating raw readings into these (REP-103) axes before sending them. -->
+  <joint name="imu_joint" type="fixed">
+    <origin xyz="0 0 ${imu_height - base_height}" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="imu_link"/>
+  </joint>
+
+  <link name="laser_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="${laser_mass}"/>
+      <xacro:cylinder_inertia_z mass="${laser_mass}" radius="0.0355" length="0.040"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.0355" length="0.040"/>
+      </geometry>
+      <material name="dark_grey"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.0355" length="0.040"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Centred on the turning axis: an offset lidar makes the scan appear to swing
+       through the map during in-place rotation, which AMCL reads as real motion.
+       The -90 degree yaw matches the RPLIDAR A1's zero-angle mark pointing at the
+       robot's right side when the cable exits to the rear — re-check this against
+       the physical mounting before trusting a map. -->
+  <joint name="laser_joint" type="fixed">
+    <origin xyz="0 0 ${laser_height - base_height}" rpy="0 0 ${-pi/2.0}"/>
+    <parent link="base_link"/>
+    <child link="laser_link"/>
+  </joint>
+
+</robot>

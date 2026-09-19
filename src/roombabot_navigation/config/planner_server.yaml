@@ -1,0 +1,69 @@
+planner_server:
+  ros__parameters:
+    expected_planner_frequency: 1.0
+    use_sim_time: true
+    planner_plugins: ["GridBased"]
+    
+    GridBased:
+      plugin: "roombabot_planning::DijkstraPlanner"
+      # Multiplies each cell's inflation cost in the path-cost calculation. Higher
+      # values make the planner favor standing off from edges/obstacles more strongly
+      # over taking the shortest route, without changing what's passable at all (that's
+      # still the separate cost < 99 threshold in dijkstra_planner.cpp) -- so narrow
+      # corridors stay traversable, but the path won't hug a boundary's edge when
+      # there's room to move away from it.
+      cost_penalty_weight: 5.0
+
+global_costmap:
+  global_costmap:
+    ros__parameters:
+      update_frequency: 1.0
+      publish_frequency: 1.0
+      global_frame: map
+      robot_base_frame: base_link
+      use_sim_time: true
+      # Body radius is 0.170 m (0.340 m diameter) plus a 1 cm margin for mounting
+      # hardware overhanging the shell. This was 0.1 on the bumperbot; leaving it
+      # there would let the planner route a 0.34 m robot through 0.2 m gaps.
+      robot_radius: 0.18
+      resolution: 0.05
+      always_send_full_costmap: true
+      # DijkstraPlanner treats any cost >= 99 as impassable, and unknown/unswept cells
+      # carry cost 255 -- with tracking on, any patch the lidar never actually covered
+      # during mapping becomes a hard wall to the planner, not just an unknown risk.
+      track_unknown_space: false
+
+      plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+
+      static_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        map_topic: /map
+        map_subscribe_transient_local: true
+      
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        enabled: true
+        observation_sources: scan
+        scan:
+          topic: /scan
+          data_type: "LaserScan"
+          max_obstacle_height: 2.0
+          marking: true
+          clearing: true
+          combination_method: 1
+          raytrace_max_range: 3.0
+          raytrace_min_range: 0.0
+          obstacle_max_range: 2.5
+          obstacle_min_range: 0.0
+
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        # Same reasoning as the local costmap (costmap.yaml) -- 1.5ft caution runway for
+        # cost_penalty_weight to bias routes away from edges over, without moving the
+        # decay-rate-controlled hard passable/impassable line itself.
+        inflation_radius: 0.4572
+        # With cost_scaling_factor 3.0, cost at the edge of the (then) 0.2m inflation_radius
+        # was still ~186 -- above DijkstraPlanner's cost<99 traversability threshold the whole
+        # way out, so nearly anything within 0.2m of a wall was a hard wall to it, not just
+        # costly. A steeper falloff gets cost below 99 well inside the radius instead.
+        cost_scaling_factor: 10.0

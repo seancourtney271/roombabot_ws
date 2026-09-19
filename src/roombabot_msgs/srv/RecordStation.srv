@@ -1,0 +1,15 @@
+# Records the robot's current pose as a delivery station.
+#
+# Called while driving the map under SLAM: park the robot exactly where it should
+# end up for this station, facing the way it should face, then call this. The
+# recorder reads map -> base_footprint at that instant, so what you drive to is
+# literally what gets saved.
+
+int32 id              # station id; re-recording an existing id overwrites it
+string name           # human-readable label, e.g. "kitchen" (optional)
+---
+bool success
+string message
+float64 x             # pose actually recorded, in the map frame
+float64 y
+float64 yaw

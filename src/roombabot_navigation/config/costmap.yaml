@@ -1,0 +1,71 @@
+local_costmap:
+  local_costmap:
+    ros__parameters:
+      # Faster than the global costmap's 1.0 Hz -- this feeds real-time obstacle
+      # stopping in pure_pursuit, so it needs to notice new obstacles quickly. The
+      # bumperbot had to run this at 3.0 because usb_cam + aruco_node + a Python IMU
+      # driver + an imu_republisher hop left the Pi too loaded to keep this node's own
+      # lifecycle bond heartbeat alive. All four of those are gone here, so the
+      # original 5.0 is affordable again. If bond timeouts ever reappear, this is the
+      # first knob to turn back down.
+      update_frequency: 5.0
+      publish_frequency: 5.0
+      global_frame: map
+      robot_base_frame: base_footprint
+      use_sim_time: false
+      # Body radius is 0.170 m (0.340 m diameter) plus a 1 cm margin for mounting
+      # hardware overhanging the shell. This was 0.1 on the bumperbot; leaving it
+      # there would let the planner route a 0.34 m robot through 0.2 m gaps.
+      robot_radius: 0.18
+      resolution: 0.05
+      # Without a rolling window, this costmap defaults to covering the *entire*
+      # static map (confirmed in logs: "StaticLayer: Resizing costmap to 313 X 284"),
+      # recomputed at 5Hz. That was cheap on the small single-room test map, but on
+      # a much larger map it was expensive enough to starve the node's own lifecycle
+      # bond heartbeat, causing "CRITICAL FAILURE: SERVER local_costmap/local_costmap
+      # IS DOWN" and a full navigation shutdown mid-session. A local costmap only
+      # ever needs to cover the area immediately around the robot.
+      rolling_window: true
+      # nav2_costmap_2d declares these as integer parameters (not double) -- a "3.0"
+      # here throws rclcpp::exceptions::InvalidParameterTypeException and crashes the
+      # node outright on startup (confirmed: local_costmap_node exit code -6, SIGABRT).
+      width: 3
+      height: 3
+      always_send_full_costmap: true
+      # Same reasoning as the global costmap (planner_server.yaml) -- DijkstraPlanner
+      # treats unknown cells as impassable, so keep this consistent between the two.
+      track_unknown_space: false
+
+      plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+
+      static_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        map_topic: /map
+        map_subscribe_transient_local: true
+
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        enabled: true
+        observation_sources: scan
+        scan:
+          topic: /scan
+          data_type: "LaserScan"
+          max_obstacle_height: 2.0
+          marking: true
+          clearing: true
+          combination_method: 1
+          raytrace_max_range: 3.0
+          raytrace_min_range: 0.0
+          obstacle_max_range: 2.5
+          obstacle_min_range: 0.0
+
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        # 1.5ft caution runway -- cost_scaling_factor (unchanged) still determines the
+        # decay rate, so the hard cost < 99 passable/impassable line Dijkstra uses
+        # stays where it was tuned for narrow corridors. This just extends how far out
+        # the graduated cost gradient reaches, giving cost_penalty_weight real room to
+        # bias the route away from edges well before it's forced to skim close.
+        inflation_radius: 0.4572
+        # Same reasoning as the global costmap (planner_server.yaml) -- keep these in sync.
+        cost_scaling_factor: 10.0
