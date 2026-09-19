@@ -9,6 +9,9 @@ delivery on a SLAM-built map. Forked from `bumperbot_ws` with three changes:
   which talk to the Pi over a binary serial protocol instead of the Pi driving an
   Arduino with ASCII and reading I²C itself.
 
+For step-by-step commands to actually configure and run this (simulation and real
+hardware), see [RUNNING.md](RUNNING.md).
+
 ## Hardware topology
 
 ```
