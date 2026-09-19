@@ -1,3 +1,10 @@
+// cfmakeraw() and the ASYNC_LOW_LATENCY ioctl live behind glibc's __USE_MISC, which
+// -std=c++17 (as opposed to -std=gnu++17) switches off. Define this before any system
+// header so the build does not depend on which standard flag ament happens to pass.
+#ifndef _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE 1
+#endif
+
 #include "roombabot_firmware/serial_link.hpp"
 
 #include <cerrno>
@@ -315,7 +322,6 @@ bool SerialLink::writeFrame(protocol::MsgType type, const void * payload, size_t
 
   if (written == static_cast<ssize_t>(total))
   {
-    ++tx_sequence_;
     return true;
   }
 

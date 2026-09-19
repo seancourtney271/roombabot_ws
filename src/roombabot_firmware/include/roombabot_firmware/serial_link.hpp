@@ -88,8 +88,6 @@ private:
   size_t payload_index_{0};
   uint8_t payload_[protocol::kMaxPayloadSize]{};
 
-  uint8_t tx_sequence_{0};
-
   std::atomic<uint64_t> frames_received_{0};
   std::atomic<uint64_t> crc_errors_{0};
   std::atomic<uint64_t> resyncs_{0};
