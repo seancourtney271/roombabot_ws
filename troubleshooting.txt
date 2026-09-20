@@ -1,0 +1,5 @@
+source install/setup.bash 
+seancour@roombabot:~/roombabot_ws$ ros2 launch roombabot_bringup real_robot.launch.py use_slam:=true
+[INFO] [launch]: All log files can be found below /home/seancour/.ros/log/2026-09-20-17-53-42-298753-roombabot-29749
+[INFO] [launch]: Default logging verbosity is set to INFO
+[ERROR] [launch]: Caught exception in launch (see debug for traceback): executable 'station_recorder.py' not found on the libexec directory '/home/seancour/roombabot_ws/install/roombabot_mapping/lib/roombabot_mapping' 
