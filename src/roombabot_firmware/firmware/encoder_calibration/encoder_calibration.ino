@@ -36,8 +36,8 @@
 
 #define LEFT_ENC_A  36
 #define LEFT_ENC_B  39
-#define RIGHT_ENC_A 34
-#define RIGHT_ENC_B 35
+#define RIGHT_ENC_A 35
+#define RIGHT_ENC_B 34
 
 volatile int64_t left_ticks = 0;
 volatile int64_t right_ticks = 0;
