@@ -44,8 +44,8 @@
     ESP32 GPIO4  -> L298N IN4   (direction, left motor)
     ESP32 3.3V   -> Yellow wires, BOTH encoders (shared VCC)
     ESP32 GND    -> Black wires, BOTH encoders, AND L298N GND (common ground)
-    ESP32 GPIO35 -> Green wire,  right encoder (channel A, interrupt)
-    ESP32 GPIO34 -> White wire,  right encoder (channel B)
+    ESP32 GPIO34 -> Green wire,  right encoder (channel A, interrupt)
+    ESP32 GPIO35 -> White wire,  right encoder (channel B)
     ESP32 GPIO36 -> Green wire,  left encoder  (channel A, interrupt)
     ESP32 GPIO39 -> White wire,  left encoder  (channel B)
 
@@ -84,8 +84,8 @@ const int PWM_FREQ_HZ    = 5000;
 const int PWM_RESOLUTION = 8;      // 8-bit -> duty cycle range 0-255
 
 // ---------- Wheel encoder connection pins ----------
-#define right_encoder_phaseA 35  // Green wire, interrupt-capable input-only pin
-#define right_encoder_phaseB 34  // White wire
+#define right_encoder_phaseA 34  // Green wire, interrupt-capable input-only pin
+#define right_encoder_phaseB 35  // White wire
 #define left_encoder_phaseA  36  // Green wire, interrupt-capable input-only pin
 #define left_encoder_phaseB  39  // White wire
 
