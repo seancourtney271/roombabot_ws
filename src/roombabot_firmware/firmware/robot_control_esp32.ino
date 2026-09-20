@@ -90,13 +90,18 @@ const int PWM_RESOLUTION = 8;      // 8-bit -> duty cycle range 0-255
 #define left_encoder_phaseB  39  // White wire
 
 // ---------- Encoder scaling ----------
-// How many encoder pulses correspond to one full wheel revolution.
-// TODO: replace 494 with YOUR measured value. To measure it: mark a
-// spot on the wheel, spin it exactly one full rotation by hand while
-// watching the raw pulse count (e.g. via the wire-ID test sketch's
-// counting logic, or by printing right_encoder_counter directly here
-// without resetting it), and use that count.
-const float PULSES_PER_REV = 494.0;
+// How many encoder pulses correspond to one full wheel revolution, as
+// counted by THIS file's decode scheme: one pulse per RISING edge on
+// phase A only (x1 decoding), not per quadrature edge.
+//
+// Measured with firmware/encoder_calibration/encoder_calibration.ino,
+// which does x4 decoding (counts every edge on both A and B), then
+// divided by 4 to match this file's x1 counting:
+//   left:  2248.4 ticks/rev (x4) / 4 = 562.1
+//   right: 2241.6 ticks/rev (x4) / 4 = 560.4
+// Averaged across both wheels since this file uses a single shared
+// constant for both.
+const float PULSES_PER_REV = 561.2;
 
 // ---------- Encoders ----------
 unsigned int right_encoder_counter = 0;
