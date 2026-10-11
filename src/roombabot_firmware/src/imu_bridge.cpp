@@ -109,6 +109,17 @@ private:
     protocol::ImuState state;
     std::memcpy(&state, payload, sizeof(state));
 
+    // The CP2102 link replays the same frame 100-200 times right after the port is
+    // opened. Without this, that burst alone fills the residual-bias window below
+    // with a single sample. The firmware bumps seq on every frame, so a repeat is
+    // never new data.
+    if (have_sequence_ && state.seq == last_sequence_)
+    {
+      return;
+    }
+    have_sequence_ = true;
+    last_sequence_ = state.seq;
+
     if ((state.status & protocol::kImuNotInitialised) != 0)
     {
       RCLCPP_WARN_THROTTLE(
@@ -193,6 +204,9 @@ private:
 
   uint64_t last_frame_count_{0};
   uint64_t last_crc_errors_{0};
+
+  bool have_sequence_{false};
+  uint8_t last_sequence_{0};
 };
 
 }  // namespace roombabot_firmware

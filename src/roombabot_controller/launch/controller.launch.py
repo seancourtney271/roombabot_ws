@@ -57,7 +57,7 @@ def generate_launch_description():
     # Keep in step with the xacro properties in roombabot.urdf.xacro.
     wheel_radius_arg = DeclareLaunchArgument(
         "wheel_radius",
-        default_value="0.036",
+        default_value="0.0322",
     )
     wheel_separation_arg = DeclareLaunchArgument(
         "wheel_separation",

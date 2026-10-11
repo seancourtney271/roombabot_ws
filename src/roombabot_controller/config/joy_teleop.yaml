@@ -12,5 +12,5 @@ joy_teleop:
           offset: 0.0
         twist-angular-z:
           axis: 3
-          scale: -1.0
+          scale: 1.0   # right stick left = +1 = turn left (REP-103)
           offset: 0.0

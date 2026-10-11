@@ -53,7 +53,7 @@ def generate_launch_description():
 
     encoder_ticks_arg = DeclareLaunchArgument(
         "encoder_ticks_per_revolution",
-        default_value="561.2",
+        default_value="2245.0",  # x4 quadrature; must match kTicksPerRev in esp32_motor.ino
         description="Encoder counts per full wheel revolution, after gearing"
     )
 

@@ -4,7 +4,7 @@ ROS 2 Jazzy differential-drive robot on a Raspberry Pi, doing station-to-station
 delivery on a SLAM-built map. Forked from `bumperbot_ws` with three changes:
 
 - **No camera.** The ArUco fiducial stack and its marker-based docking are gone.
-- **Roomba chassis.** 0.340 m diameter, 0.092 m tall, 0.072 m wheels on a 0.235 m track.
+- **Roomba chassis.** 0.340 m diameter, 0.092 m tall, 0.064 m wheels on a 0.235 m track.
 - **Two ESP32s.** The motor controllers and the MPU6050 now hang off their own ESP32s,
   which talk to the Pi over a binary serial protocol instead of the Pi driving an
   Arduino with ASCII and reading I²C itself.

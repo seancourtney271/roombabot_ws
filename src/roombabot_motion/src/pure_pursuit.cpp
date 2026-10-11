@@ -11,7 +11,7 @@ namespace roombabot_motion
     // The node receives a global path, transforms it into the robot's current frame,
     // and will eventually produce velocity commands based on a PD control law.
     PurePursuit::PurePursuit() : Node("pure_pursuit_planner_node"),
-        look_ahead_distance(0.5), maximum_linear_velocity(0.3), maximum_angular_velocity(1.0), path_planner_node_name("/astar/path"), current_plan_index(0), locked_rotation_sign(0),
+        look_ahead_distance(0.5), maximum_linear_velocity(0.2), maximum_angular_velocity(1.0), path_planner_node_name("/astar/path"), current_plan_index(0), locked_rotation_sign(0),
         is_currently_blocked(false)
     {
         // Declare configurable ROS2 parameters with default values.

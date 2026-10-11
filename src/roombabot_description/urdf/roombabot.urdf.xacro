@@ -37,8 +37,8 @@
   <xacro:property name="body_height"     value="0.084"/>
   <xacro:property name="body_mass"       value="3.0"/>
 
-  <!-- 72 mm diameter drive wheels on a 235 mm track. -->
-  <xacro:property name="wheel_radius"     value="0.036"/>
+  <!-- 64.35 mm diameter drive wheels (caliper, 2026-10-11) on a 235 mm track. -->
+  <xacro:property name="wheel_radius"     value="0.0322"/>
   <xacro:property name="wheel_width"      value="0.025"/>
   <xacro:property name="wheel_separation" value="0.235"/>
   <xacro:property name="wheel_mass"       value="0.15"/>

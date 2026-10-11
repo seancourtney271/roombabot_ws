@@ -47,8 +47,8 @@
         </xacro:unless>
 
         <!-- ros2_control Common Interfaces -->
-        <!-- Limits are wheel angular velocity in rad/s. At a 0.036 m wheel radius,
-             15 rad/s is ~0.54 m/s at the rim, comfortably above the 0.4 m/s cap the
+        <!-- Limits are wheel angular velocity in rad/s. At a 0.0322 m wheel radius,
+             15 rad/s is ~0.48 m/s at the rim, comfortably above the 0.4 m/s cap the
              diff_drive_controller applies to the base. -->
         <joint name="wheel_right_joint">
             <command_interface name="velocity">
