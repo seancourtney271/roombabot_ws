@@ -1,6 +1,8 @@
 controller_manager:
   ros__parameters:
-    update_rate: 100 # Hz
+    # 50 Hz: the velocity loop runs on the ESP32 at 100 Hz, so the Pi only relays
+    # setpoints and reads ticks. 100 Hz here cost ~34% of a core (2026-10-11).
+    update_rate: 50 # Hz
 
     roombabot_controller:
       type: diff_drive_controller/DiffDriveController

@@ -139,10 +139,10 @@ ros2 topic echo /mission/arrived   # fires once the robot reaches the station
 ### 0. Hardware prerequisites (once per robot)
 
 - **udev symlinks** for all three USB devices, so kernel enumeration order (which is
-  *not* stable across boots) can never send wheel commands to the IMU board. A
-  reference rule file is at
-  [setup/99-roombabot.rules](setup/99-roombabot.rules) — fill in the real
-  `idVendor`/`idProduct`/`serial` values with `udevadm info -a -n /dev/ttyUSB0`, then:
+  *not* stable across boots) can never send wheel commands to the IMU board. All three
+  are CP2102 bridges with the same serial number, so
+  [setup/99-roombabot.rules](setup/99-roombabot.rules) keys on the **physical USB
+  port** — each cable has to stay in its port:
 
   ```bash
   sudo cp setup/99-roombabot.rules /etc/udev/rules.d/
@@ -150,29 +150,55 @@ ros2 topic echo /mission/arrived   # fires once the robot reaches the station
   ls -l /dev/esp32_motor /dev/esp32_imu /dev/rplidar   # confirm all three exist
   ```
 
-- **ESP32 firmware** implementing the protocol in
-  [PROTOCOL.md](src/roombabot_firmware/firmware/PROTOCOL.md) is flashed to both
-  boards. This workspace doesn't include the `.ino` sketches — write them against that
-  spec (frame format, message types, the command watchdog requirement, and the sign
-  conventions called out below).
-- **`encoder_ticks_per_revolution`** is measured for your gearbox/encoder combo. There
-  is deliberately no built-in default in the hardware interface — passing the wrong
-  value scales all odometry by a constant, which produces a plausible-looking but
-  *wrong* map rather than an obvious failure.
+- **Joystick access**: `joy_node` opens the controller through `/dev/input/event*`,
+  which must be readable by the `input` group (and your user in it):
+
+  ```bash
+  sudo cp setup/81-event.rules /etc/udev/rules.d/
+  sudo udevadm control --reload-rules && sudo udevadm trigger --subsystem-match=input
+  ```
+
+  `~/.ros/log/joy_node_*.log` should then say `Opened joystick: ...`.
+
+- **ESP32 firmware**: flash
+  [esp32_motor.ino](src/roombabot_firmware/firmware/esp32_motor/esp32_motor.ino) and
+  [esp32_imu.ino](src/roombabot_firmware/firmware/esp32_imu/esp32_imu.ino)
+  (ESP32 board package 3.x, "ESP32 Dev Module", no extra libraries). They implement
+  [PROTOCOL.md](src/roombabot_firmware/firmware/PROTOCOL.md) at 921600 baud. Check
+  each board is talking before launching — every frame starts `a5 5a`:
+
+  ```bash
+  stty -F /dev/esp32_motor 921600 raw -echo; xxd -c 26 /dev/esp32_motor | head -3   # a55a02...
+  stty -F /dev/esp32_imu 921600 raw -echo; xxd -c 34 /dev/esp32_imu | head -3       # a55a03...
+  ```
+
+- **Calibration** (measured on this robot 2026-10-11 — redo if wheels, motors, or
+  the IMU mount change):
+
+  | Value | Where | Measured |
+  |---|---|---|
+  | encoder ticks/rev (x4) | `encoder_ticks_per_revolution` in `real_robot.launch.py`, `kTicksPerRev` in `esp32_motor.ino` | 2245 ([encoder_calibration.ino](src/roombabot_firmware/firmware/encoder_calibration/encoder_calibration.ino)) |
+  | wheel radius | `roombabot_controllers.yaml`, URDF | 0.0322 m (64.35 mm calipered) |
+  | effective track | `wheel_separation_multiplier` | 0.969 (driven 360s vs gyro) |
+  | IMU mount | `kAxisFrom`/`kAxisSign` in `esp32_imu.ino` | upside down, X arrow to the left |
+  | top speed | controller `max_velocity` | 0.27 m/s on carpet (11.1 V LiPo via L298N), limited to 0.22 |
 
 ### 1. First bring-up: bench checks before the robot drives anywhere
 
 With the robot up on blocks (wheels off the ground):
 
 ```bash
-ros2 launch roombabot_bringup real_robot.launch.py use_slam:=true encoder_ticks_per_revolution:=<your value>
+ros2 launch roombabot_bringup real_robot.launch.py use_slam:=true
 ```
 
 - `ros2 topic hz /imu/data` — should sit near 100 Hz. If it's silent, check
   `/dev/esp32_imu` and the ESP32's power/serial connection.
-- `ros2 topic echo /imu/data --once`, then rotate the robot by hand
+- `ros2 topic echo /imu/data`, then rotate the robot by hand
   counter-clockwise (left) — `angular_velocity.z` must read **positive**. This is the
-  EKF's only IMU input; get it wrong and heading estimation is backwards.
+  EKF's only IMU input; get it wrong and heading estimation is backwards. While
+  you're there: flat should read `linear_acceleration.z` ≈ +9.8 (this MPU6050 reads
+  ~11.5), nose tipped down → `x` goes **negative**, left side down → `y` goes
+  **negative**.
 - Spin one wheel by hand forward — its `/joint_states` `velocity` and `position` must
   both increase. Do this for both wheels; a wired-backwards wheel drives the robot in
   circles under closed-loop control.

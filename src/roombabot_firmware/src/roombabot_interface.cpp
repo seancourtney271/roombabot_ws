@@ -16,6 +16,11 @@ namespace
 {
 constexpr double kTwoPi = 2.0 * M_PI;
 
+// How long after activation the first valid MotorState may take. Longer than
+// state_timeout because opening the port on an ESP32 DevKit can reset the board, and
+// it needs most of a second to boot before it sends anything.
+constexpr double kFirstSampleTimeout = 3.0;
+
 double paramOr(
   const std::unordered_map<std::string, std::string> & params, const std::string & key,
   double fallback)
@@ -311,18 +316,41 @@ hardware_interface::return_type RoombabotInterface::read(
         "control rate, or frames are being dropped");
     }
   }
-  else if (have_first_sample_ && last_state_time_.nanoseconds() > 0)
+  else
   {
+    // First cycle after activation with nothing yet: start the clock here, so a board
+    // that never sends a valid frame (wrong firmware, wrong port, wrong baud) is
+    // reported instead of the interface sitting "active" and silently doing nothing.
+    if (last_state_time_.nanoseconds() == 0)
+    {
+      last_state_time_ = time;
+    }
+
     // No new frame this cycle is completely normal -- the control loop and the ESP32
     // are not phase-locked. Only a sustained silence is a fault.
-    if ((time - last_state_time_).seconds() > state_timeout_)
+    const double timeout = have_first_sample_ ? state_timeout_ : kFirstSampleTimeout;
+    if ((time - last_state_time_).seconds() > timeout)
     {
       if (!link_timed_out_)
       {
         link_timed_out_ = true;
-        RCLCPP_ERROR(
-          logger_, "No MotorState from %s for %.2fs -- treating the link as down", port_.c_str(),
-          state_timeout_);
+        if (have_first_sample_)
+        {
+          RCLCPP_ERROR(
+            logger_, "No MotorState from %s for %.2fs -- treating the link as down",
+            port_.c_str(), state_timeout_);
+        }
+        else
+        {
+          RCLCPP_ERROR(
+            logger_,
+            "No valid MotorState from %s in %.1fs since activation -- is esp32_motor.ino "
+            "flashed on the board at that port, at %u baud? (%lu bytes received, %lu CRC "
+            "errors)",
+            port_.c_str(), kFirstSampleTimeout, baud_rate_,
+            static_cast<unsigned long>(link_.bytesReceived()),
+            static_cast<unsigned long>(link_.crcErrors()));
+        }
       }
       // Report stopped rather than the last known velocity, so the EKF and the
       // diff_drive_controller's odometry do not keep coasting on stale data.

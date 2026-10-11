@@ -4,7 +4,9 @@ Everything the two `.ino` sketches have to agree with. The authoritative definit
 [`esp32_protocol.hpp`](../include/roombabot_firmware/esp32_protocol.hpp) — this file
 describes it; that file compiles it.
 
-Copy `esp32_protocol.hpp` into the Arduino sketch folder and include it directly. It is
+Copy `esp32_protocol.hpp` into the Arduino sketch folder and include it directly (the
+`esp32_motor/` and `esp32_imu/` sketch folders each carry a copy -- re-copy after any
+change to the header). It is
 deliberately free of ROS and POSIX headers so it compiles unchanged under the Arduino
 toolchain, which removes any chance of the two ends drifting apart.
 
@@ -15,9 +17,19 @@ toolchain, which removes any chance of the two ends drifting apart.
 | `esp32_motor` | `/dev/esp32_motor` | wheel velocity in, encoder ticks + measured velocity out |
 | `esp32_imu` | `/dev/esp32_imu` | MPU6050 gyro + accel out |
 
-USB CDC. The `baud_rate` parameter (default 921600) is ignored by a native-USB ESP32
-but must still be a value termios accepts; it matters only if a link is ever moved to a
-hardware UART.
+921600 baud, 8N1, no flow control, on both ends. These boards are ESP32 DevKitV1s,
+whose USB port goes through a CP2102 USB-UART bridge to the ESP32's hardware UART0 -- so
+the baud rate is real and **must match** (`Serial.begin(921600)` in the sketches,
+`baud_rate` 921600 on the Pi). It would only be ignored on a native-USB ESP32 (S2/S3/C3
+CDC).
+
+Two CP2102 behaviours worth knowing:
+
+- All three bridges on this robot report serial number `0001`, so udev can only tell
+  them apart by physical USB port (`ATTRS{devpath}`) -- see `setup/99-roombabot.rules`.
+- Right after the Pi opens a port, the link can replay one stale frame 100-200 times
+  before the live stream starts. Every frame carries a `seq`, so consumers drop a frame
+  whose `seq` repeats the previous one (`imu_bridge` does).
 
 Both boards are addressed by udev symlink rather than `/dev/ttyUSB*`, because with two
 ESP32s and the RPLIDAR on the same bus the kernel's enumeration order is not stable
@@ -52,7 +64,7 @@ across boots.
 | 8 | `uint8` | `seq` | free-running; gaps mean the Pi dropped a frame |
 | 9 | `uint8` | `flags` | bit0 `kCmdEnable` — clear to coast/brake regardless of setpoints |
 
-Sent once per ros2_control cycle (100 Hz). **The firmware must run a command watchdog**:
+Sent once per ros2_control cycle (50 Hz, `update_rate` in `roombabot_controllers.yaml`). **The firmware must run a command watchdog**:
 if no `MotorCommand` arrives for ~250 ms, stop the motors and raise
 `kMotorCmdWatchdog` in the next `MotorState`. Closing the serial port on the Pi does
 not by itself stop a moving robot.

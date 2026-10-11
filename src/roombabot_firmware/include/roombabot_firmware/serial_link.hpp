@@ -53,6 +53,7 @@ public:
   bool writeFrame(protocol::MsgType type, const void * payload, size_t length);
 
   // Diagnostics. All monotonic, all safe to read from any thread.
+  uint64_t bytesReceived() const { return bytes_received_.load(std::memory_order_relaxed); }
   uint64_t framesReceived() const { return frames_received_.load(std::memory_order_relaxed); }
   uint64_t crcErrors() const { return crc_errors_.load(std::memory_order_relaxed); }
   uint64_t resyncs() const { return resyncs_.load(std::memory_order_relaxed); }
@@ -88,6 +89,7 @@ private:
   size_t payload_index_{0};
   uint8_t payload_[protocol::kMaxPayloadSize]{};
 
+  std::atomic<uint64_t> bytes_received_{0};
   std::atomic<uint64_t> frames_received_{0};
   std::atomic<uint64_t> crc_errors_{0};
   std::atomic<uint64_t> resyncs_{0};

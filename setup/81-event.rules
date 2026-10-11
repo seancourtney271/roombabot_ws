@@ -1,0 +1,15 @@
+# /etc/udev/rules.d/81-event.rules
+#
+# Lets the (non-root) user running ROS open /dev/input/event* -- joy_node reads the
+# PS4 controller through its event device, not /dev/input/js0. The user must be in the
+# "input" group (`groups` to check).
+#
+# The rule that was installed before 2026-10-11 used GROUP="raspberry", a group that
+# does not exist on this Pi, so every event device fell back to root:root and joy_node
+# silently never opened the controller.
+#
+# After editing:
+#   sudo udevadm control --reload-rules && sudo udevadm trigger --subsystem-match=input
+#   ls -l /dev/input/event*      # expect group "input"
+
+SUBSYSTEM=="input", KERNEL=="event*", GROUP="input", MODE="0660"

@@ -2,9 +2,11 @@
 
 import os
 import math
+import time
 import yaml
 
 import rclpy
+from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from ament_index_python.packages import get_package_share_directory
 
@@ -38,17 +40,16 @@ class StationRecorder(Node):
         self.declare_parameter("stations_path", "")
         self.declare_parameter("global_frame", "map")
         self.declare_parameter("robot_frame", "base_footprint")
+        self.declare_parameter("lookup_timeout", 2.0)
 
         self.map_name = self.get_parameter("map_name").value
         self.stations_path_override = self.get_parameter("stations_path").value
         self.global_frame = self.get_parameter("global_frame").value
         self.robot_frame = self.get_parameter("robot_frame").value
+        self.lookup_timeout = self.get_parameter("lookup_timeout").value
 
         # station_id -> {"x", "y", "yaw", "name"} in the map frame.
         self.stations = {}
-
-        self.tf_buffer = Buffer()
-        self.tf_listener = TransformListener(self.tf_buffer, self)
 
         self.marker_publisher = self.create_publisher(MarkerArray, "/stations/found", 10)
 
@@ -62,11 +63,7 @@ class StationRecorder(Node):
 
     def record_station_callback(self, request, response):
         try:
-            # "Latest available" is the right choice here, unlike the marker-based
-            # recorder this replaces: there is no capture latency to compensate for,
-            # and the robot is expected to be parked and stationary when this is called.
-            transform = self.tf_buffer.lookup_transform(
-                self.global_frame, self.robot_frame, rclpy.time.Time())
+            transform = self._lookup_robot_pose()
         except (LookupException, ConnectivityException, ExtrapolationException) as ex:
             response.success = False
             response.message = (
@@ -106,6 +103,30 @@ class StationRecorder(Node):
 
         self.publish_markers()
         return response
+
+    def _lookup_robot_pose(self):
+        # The TF listener exists only for the duration of this call. A permanent one
+        # made this otherwise-idle node decode every /tf message in Python -- ~28% of a
+        # Pi core (measured 2026-10-11) -- just to answer a service called a handful of
+        # times per map. The listener's subscriptions sit in their own reentrant
+        # callback group, so main()'s MultiThreadedExecutor keeps feeding the buffer
+        # while this callback waits.
+        buffer = Buffer()
+        listener = TransformListener(buffer, self)
+        try:
+            deadline = time.monotonic() + self.lookup_timeout
+            while True:
+                try:
+                    # "Latest available" is right here: there is no capture latency to
+                    # compensate for, and the robot is parked when this is called.
+                    return buffer.lookup_transform(
+                        self.global_frame, self.robot_frame, rclpy.time.Time())
+                except (LookupException, ConnectivityException, ExtrapolationException):
+                    if time.monotonic() >= deadline:
+                        raise
+                    time.sleep(0.05)
+        finally:
+            listener.unregister()
 
     def publish_markers(self):
         marker_array = MarkerArray()
@@ -208,7 +229,11 @@ class StationRecorder(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = StationRecorder()
-    rclpy.spin(node)
+    # Multi-threaded so the transient TF listener's callbacks can run while
+    # record_station_callback is blocked waiting on the buffer.
+    executor = MultiThreadedExecutor()
+    executor.add_node(node)
+    executor.spin()
     rclpy.shutdown()
 
 

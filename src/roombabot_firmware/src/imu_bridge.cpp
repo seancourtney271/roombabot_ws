@@ -169,11 +169,24 @@ private:
   void reportDiagnostics()
   {
     const uint64_t frames = link_.framesReceived();
+    const uint64_t bytes = link_.bytesReceived();
     if (frames == last_frame_count_)
     {
-      RCLCPP_WARN(
-        get_logger(), "No IMU frames from %s in the last 5s -- is esp32_imu powered?",
-        port_.c_str());
+      // Silence and garbage have different causes, so say which one it is.
+      if (bytes == last_byte_count_)
+      {
+        RCLCPP_WARN(
+          get_logger(), "No bytes at all from %s in the last 5s -- is esp32_imu powered "
+          "and on this port?", port_.c_str());
+      }
+      else
+      {
+        RCLCPP_WARN(
+          get_logger(), "%lu bytes but no valid IMU frames from %s in the last 5s (%lu CRC "
+          "errors) -- wrong firmware or baud rate, or the board is stuck in its bootloader",
+          static_cast<unsigned long>(bytes - last_byte_count_), port_.c_str(),
+          static_cast<unsigned long>(link_.crcErrors()));
+      }
     }
     else if (link_.crcErrors() != last_crc_errors_)
     {
@@ -183,6 +196,7 @@ private:
         static_cast<unsigned long>(link_.crcErrors() - last_crc_errors_));
     }
     last_frame_count_ = frames;
+    last_byte_count_ = bytes;
     last_crc_errors_ = link_.crcErrors();
   }
 
@@ -203,6 +217,7 @@ private:
   double bias_z_{0.0};
 
   uint64_t last_frame_count_{0};
+  uint64_t last_byte_count_{0};
   uint64_t last_crc_errors_{0};
 
   bool have_sequence_{false};

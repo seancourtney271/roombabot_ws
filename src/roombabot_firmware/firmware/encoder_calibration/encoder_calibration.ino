@@ -9,7 +9,7 @@
  *
  * Wiring (edit these four defines if your harness differs):
  *   left  A (green) -> GPIO36   left  B (white) -> GPIO39
- *   right A (green) -> GPIO34   right B (white) -> GPIO35
+ *   right A (green) -> GPIO35   right B (white) -> GPIO34
  *
  * GPIO 34-39 are input-only ESP32 pins with no internal pull resistors, so
  * this assumes the encoder outputs are actively driven (push-pull), which

@@ -107,14 +107,18 @@ values are duplicated outside that file and must be kept in step:
 
 ## Before first run
 
-- [ ] Set `encoder_ticks_per_revolution` to the real value. There is deliberately no
-      default in the hardware interface: getting it wrong scales all odometry by a
-      constant, which produces a plausible-looking but wrong map rather than an obvious
-      failure.
-- [ ] Verify the gyro Z sign on the bench — rotating the robot left must give a
-      **positive** `angular_velocity.z` on `/imu/data`. It is the EKF's only IMU input.
-- [ ] Verify the wheel sign convention: positive `rad_s` and increasing ticks must both
-      mean forward, on both sides.
+The checked items were verified on this robot on 2026-10-11 — see the calibration table in
+[RUNNING.md](RUNNING.md#0-hardware-prerequisites-once-per-robot) for the values and how
+each was measured. Redo the relevant check if hardware changes:
+
+- [x] `encoder_ticks_per_revolution` = 2245 (x4 decode). Getting it wrong scales all
+      odometry by a constant — a plausible-looking but wrong map, not an obvious failure.
+- [x] Gyro Z sign: rotating left gives **positive** `angular_velocity.z` on `/imu/data`.
+      It is the EKF's only IMU input. The IMU is mounted upside down and turned 90°;
+      `esp32_imu.ino` rotates it into REP-103.
+- [x] Wheel signs: positive `rad_s` and increasing ticks both mean forward, both sides.
+- [x] Wheel radius 0.0322 m (calipered), effective track via
+      `wheel_separation_multiplier` 0.969.
 - [ ] Check `laser_joint`'s yaw against how the RPLIDAR is physically mounted.
 - [ ] Re-measure `body_diameter` against the actual shell if anything overhangs it;
       `robot_radius` carries only a 1 cm margin.

@@ -298,11 +298,14 @@
 
   <!-- Centred on the turning axis: an offset lidar makes the scan appear to swing
        through the map during in-place rotation, which AMCL reads as real motion.
-       The -90 degree yaw matches the RPLIDAR A1's zero-angle mark pointing at the
-       robot's right side when the cable exits to the rear — re-check this against
-       the physical mounting before trusting a map. -->
+       Yaw 180 deg: the lidar's zero angle points to the robot's REAR. Measured
+       2026-10-11 by facing a wall squarely: its normal came out at +174.8 deg in
+       laser_link, and the lidar is visibly square to the chassis, so the ~5 deg is
+       placement error. (The -90 inherited here before was wrong by 90 deg and
+       smeared every map.) Rotation axis confirmed on the turning axis; 0.165 m to
+       the shell edge. -->
   <joint name="laser_joint" type="fixed">
-    <origin xyz="0 0 ${laser_height - base_height}" rpy="0 0 ${-pi/2.0}"/>
+    <origin xyz="0 0 ${laser_height - base_height}" rpy="0 0 ${pi}"/>
     <parent link="base_link"/>
     <child link="laser_link"/>
   </joint>

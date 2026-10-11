@@ -23,10 +23,9 @@ namespace roombabot_firmware
 namespace
 {
 
-// termios speed_t constant for a plain integer baud rate. Over USB CDC the ESP32
-// ignores this entirely (the "baud rate" is a fiction on a USB ACM endpoint), but it
-// still has to be a value termios accepts, and it matters if the link is ever moved
-// onto a real UART.
+// termios speed_t constant for a plain integer baud rate. This robot's ESP32 DevKits
+// sit behind CP2102 USB-UART bridges, so the rate is real and must match the
+// firmware's Serial.begin(); it would only be ignored on a native-USB (CDC) ESP32.
 speed_t toSpeed(unsigned int baud_rate)
 {
   switch (baud_rate)
@@ -209,6 +208,7 @@ void SerialLink::readerLoop()
     const ssize_t count = ::read(fd_, buffer, sizeof(buffer));
     if (count > 0)
     {
+      bytes_received_.fetch_add(static_cast<uint64_t>(count), std::memory_order_relaxed);
       consume(buffer, static_cast<size_t>(count));
     }
     else if (count < 0 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR)

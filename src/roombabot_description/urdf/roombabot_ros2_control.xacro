@@ -28,9 +28,8 @@
                      share the bus and the kernel's enumeration order is not stable
                      across boots. -->
                 <param name="port">$(arg motor_port)</param>
-                <!-- Ignored by a native-USB ESP32 (a CDC endpoint has no real baud
-                     rate) but still has to be a value termios accepts, and it
-                     matters if this link ever moves to a hardware UART. -->
+                <!-- Must match Serial.begin() in esp32_motor.ino: the DevKit's CP2102
+                     bridge talks to the ESP32's hardware UART, so the rate is real. -->
                 <param name="baud_rate">921600</param>
                 <!-- Counts per full wheel revolution, after gearing and whatever
                      edge-counting mode the firmware uses. No default in the plugin:
