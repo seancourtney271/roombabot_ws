@@ -15,12 +15,21 @@ def generate_launch_description():
         default_value="false"
     )
 
+    world_name_arg = DeclareLaunchArgument(
+        "world_name",
+        default_value="small_house",
+        description="World file in roombabot_description/worlds (without .world)"
+    )
+
     gazebo = IncludeLaunchDescription(
         os.path.join(
             get_package_share_directory("roombabot_description"),
             "launch",
             "gazebo.launch.py"
         ),
+        launch_arguments={
+            "world_name": LaunchConfiguration("world_name")
+        }.items(),
     )
     
     controller = IncludeLaunchDescription(
@@ -109,6 +118,7 @@ def generate_launch_description():
     
     return LaunchDescription([
         use_slam_arg,
+        world_name_arg,
         gazebo,
         controller,
         joystick,

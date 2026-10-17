@@ -5,7 +5,7 @@ colcon build --parallel-workers 1
 colcon build --packages-select roombabot_firmware
 
 ///Domain IDs
-export ROS_DOMAIN_ID=2
+export ROS_DOMAIN_ID=0
 
 ///Real Robot Section
 ros2 launch roombabot_bringup real_robot.launch.py use_slam:=true
