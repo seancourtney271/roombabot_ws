@@ -20,6 +20,11 @@ namespace roombabot_planning
         nav2_util::declare_parameter_if_not_declared(
             node_, name_ + ".cost_penalty_weight", rclcpp::ParameterValue(5.0));
         node_->get_parameter(name_ + ".cost_penalty_weight", cost_penalty_weight_);
+
+        smooth_client = rclcpp_action::create_client<nav2_msgs::action::SmoothPath>(node_, "smooth_path");
+        if(!smooth_client->wait_for_action_server(std::chrono::seconds(3))){
+            RCLCPP_ERROR(node_->get_logger(), "Action Server not available after waiting");
+        }
     }
 
     void DijkstraPlanner::cleanup()
@@ -135,6 +140,32 @@ namespace roombabot_planning
         }
 
         std::reverse(path.poses.begin(), path.poses.end());
+
+        // Initialize smoother
+        nav2_msgs::action::SmoothPath::Goal path_smooth;
+        path_smooth.path = path;
+        path_smooth.check_for_collisions = false;
+        path_smooth.smoother_id = "simple_smoother";
+        path_smooth.max_smoothing_duration.sec = 10;
+        // Start smoothing
+        auto future = smooth_client->async_send_goal(path_smooth);
+        // Check if smoothing is finished
+        if(future.wait_for(std::chrono::seconds(3)) == std::future_status::ready){
+            // If finished check if it worked
+            auto goal_handle = future.get();
+            if(goal_handle){
+                // Get async result of the goal
+                auto result_future = smooth_client->async_get_result(goal_handle);
+                if(result_future.wait_for(std::chrono::seconds(3)) == std::future_status::ready){
+                    // Check if path succeeded
+                    auto result_path = result_future.get();
+                    if(result_path.code == rclcpp_action::ResultCode::SUCCEEDED){
+                        // If path smoothing completed set back to path
+                        path = result_path.result->path;
+                    }
+                }
+            }
+        }
         return path;
     }
 
