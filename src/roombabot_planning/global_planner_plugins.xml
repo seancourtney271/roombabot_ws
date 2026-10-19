@@ -3,4 +3,8 @@
         <class type="roombabot_planning::DijkstraPlanner" base_class_type="nav2_core::GlobalPlanner">
         </class>
     </library>
+    <library path="astar_planner">
+        <class type="roombabot_planning::AStarPlanner" base_class_type="nav2_core::GlobalPlanner">
+        </class>
+    </library>
 </class_libraries>

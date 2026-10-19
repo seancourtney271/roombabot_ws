@@ -9,6 +9,7 @@ from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
     use_slam = LaunchConfiguration("use_slam")
+    map_name = LaunchConfiguration("map_name")
 
     use_slam_arg = DeclareLaunchArgument(
         "use_slam",
@@ -19,6 +20,12 @@ def generate_launch_description():
         "world_name",
         default_value="small_house",
         description="World file in roombabot_description/worlds (without .world)"
+    )
+
+    map_name_arg = DeclareLaunchArgument(
+        "map_name",
+        default_value="small_house",
+        description="Map in roombabot_mapping/maps to localize and navigate against"
     )
 
     gazebo = IncludeLaunchDescription(
@@ -76,6 +83,23 @@ def generate_launch_description():
             "launch",
             "global_localization.launch.py"
         ),
+        launch_arguments={
+            "map_name": map_name,
+            "use_sim_time": "True"
+        }.items(),
+        condition=UnlessCondition(use_slam)
+    )
+
+    navigation = IncludeLaunchDescription(
+        os.path.join(
+            get_package_share_directory("roombabot_navigation"),
+            "launch",
+            "navigation.launch.py"
+        ),
+        launch_arguments={
+            "map_name": map_name,
+            "use_sim_time": "True"
+        }.items(),
         condition=UnlessCondition(use_slam)
     )
 
@@ -119,11 +143,13 @@ def generate_launch_description():
     return LaunchDescription([
         use_slam_arg,
         world_name_arg,
+        map_name_arg,
         gazebo,
         controller,
         joystick,
         local_localization,
         localization,
+        navigation,
         slam,
         rviz_localization,
         rviz_slam

@@ -14,36 +14,36 @@
 
 namespace roombabot_planning
 {
-    struct GraphNode
+    struct GraphNode_Dijkstra
     {
         int x = 0;
         int y = 0;
         // Fractional so diagonal steps (~1.41) can be weighted differently than
         // orthogonal ones (1.0) -- see explore_directions in dijkstra_planner.cpp.
         double cost = 0.0;
-        std::shared_ptr<GraphNode> prev;
+        std::shared_ptr<GraphNode_Dijkstra> prev;
 
-        GraphNode(int in_x, int in_y) : x(in_x), y(in_y), cost(0.0)
+        GraphNode_Dijkstra(int in_x, int in_y) : x(in_x), y(in_y), cost(0.0)
         {
         }
 
-        GraphNode() : GraphNode(0, 0)
+        GraphNode_Dijkstra() : GraphNode_Dijkstra(0, 0)
         {
         }
 
-        bool operator>(const GraphNode & other) const
+        bool operator>(const GraphNode_Dijkstra & other) const
         {
             return cost > other.cost;
         }
 
-        bool operator==(const GraphNode & other) const
+        bool operator==(const GraphNode_Dijkstra & other) const
         {
             return x == other.x && y == other.y;
         }
 
-        GraphNode operator+(std::pair<int, int> const & other)
+        GraphNode_Dijkstra operator+(std::pair<int, int> const & other)
         {
-            GraphNode ret(x + other.first, y + other.second);
+            GraphNode_Dijkstra ret(x + other.first, y + other.second);
             return ret;
         }
     };
@@ -93,9 +93,9 @@ namespace roombabot_planning
             // Goal recieved
             void goalCallback(const geometry_msgs::msg::PoseStamped::SharedPtr pose);
 
-            GraphNode worldToGrid(const geometry_msgs::msg::Pose & pose);
-            geometry_msgs::msg::Pose gridToWorld(GraphNode & node);
-            bool poseOnMap(const GraphNode & node);
-            unsigned int poseToCell(const GraphNode & node);
+            GraphNode_Dijkstra worldToGrid(const geometry_msgs::msg::Pose & pose);
+            geometry_msgs::msg::Pose gridToWorld(GraphNode_Dijkstra & node);
+            bool poseOnMap(const GraphNode_Dijkstra & node);
+            unsigned int poseToCell(const GraphNode_Dijkstra & node);
     };
 }

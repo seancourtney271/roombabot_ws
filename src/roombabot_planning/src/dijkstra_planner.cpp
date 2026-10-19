@@ -58,9 +58,9 @@ namespace roombabot_planning
         };
 
         // Nodes not yet processed
-        std::priority_queue<GraphNode, std::vector<GraphNode>, std::greater<GraphNode>> pending_nodes;
+        std::priority_queue<GraphNode_Dijkstra, std::vector<GraphNode_Dijkstra>, std::greater<GraphNode_Dijkstra>> pending_nodes;
         // Nodes that are processed. A flat per-cell flag gives an O(1) membership
-        // check -- the previous std::vector<GraphNode> + std::find was O(V) per
+        // check -- the previous std::vector<GraphNode_Dijkstra> + std::find was O(V) per
         // check, so on the full-size global costmap (hundreds of thousands of
         // cells) the search degenerated to roughly O(V^2), taking so long that
         // nav2's action server would try (and fail) to cancel/preempt it long
@@ -68,7 +68,7 @@ namespace roombabot_planning
         std::vector<bool> visited_cells(costmap_->getSizeInCellsX() * costmap_->getSizeInCellsY(), false);
 
         pending_nodes.push(worldToGrid(start.pose));
-        GraphNode active_node;
+        GraphNode_Dijkstra active_node;
         std::size_t iterations_since_cancel_check = 0;
         while(!pending_nodes.empty() && rclcpp::ok())
         {
@@ -96,7 +96,7 @@ namespace roombabot_planning
             for(const auto & [dx, dy, step_cost] : explore_directions)
             {
                 // Get Neighbor
-                GraphNode new_node = active_node + std::make_pair(dx, dy);
+                GraphNode_Dijkstra new_node = active_node + std::make_pair(dx, dy);
                 // Check if within the map, not already visited, and the new nodes location exists
                 if(poseOnMap(new_node) && !visited_cells[poseToCell(new_node)] &&
                 // Cells that are less than 99 and >= 0 for being ok cells
@@ -108,7 +108,7 @@ namespace roombabot_planning
                     // there's room to, rather than always taking the shortest route.
                     new_node.cost = active_node.cost + step_cost + cost_penalty_weight_ * costmap_->getCost(new_node.x, new_node.y);
                     // Assigned previous node
-                    new_node.prev = std::make_shared<GraphNode>(active_node);
+                    new_node.prev = std::make_shared<GraphNode_Dijkstra>(active_node);
                     pending_nodes.push(new_node);
                     visited_cells[poseToCell(new_node)] = true;
                 }
@@ -169,14 +169,14 @@ namespace roombabot_planning
         return path;
     }
 
-    GraphNode DijkstraPlanner::worldToGrid(const geometry_msgs::msg::Pose & pose)
+    GraphNode_Dijkstra DijkstraPlanner::worldToGrid(const geometry_msgs::msg::Pose & pose)
     {
         int grid_x = static_cast<int>((pose.position.x - costmap_->getOriginX()) / costmap_->getResolution());
         int grid_y = static_cast<int>((pose.position.y - costmap_->getOriginY()) / costmap_->getResolution());
-        return GraphNode(grid_x, grid_y);
+        return GraphNode_Dijkstra(grid_x, grid_y);
     }
 
-    geometry_msgs::msg::Pose DijkstraPlanner::gridToWorld(GraphNode & node)
+    geometry_msgs::msg::Pose DijkstraPlanner::gridToWorld(GraphNode_Dijkstra & node)
     {
         geometry_msgs::msg::Pose pose;
         pose.position.x = node.x * costmap_->getResolution() + costmap_->getOriginX();
@@ -184,12 +184,12 @@ namespace roombabot_planning
         return pose;
     }
 
-    bool DijkstraPlanner::poseOnMap(const GraphNode & node)
+    bool DijkstraPlanner::poseOnMap(const GraphNode_Dijkstra & node)
     {
         return node.x >= 0 && node.x < static_cast<int>(costmap_->getSizeInCellsX()) && node.y >= 0 && node.y < static_cast<int>(costmap_->getSizeInCellsY());
     }
 
-    unsigned int DijkstraPlanner::poseToCell(const GraphNode & node)
+    unsigned int DijkstraPlanner::poseToCell(const GraphNode_Dijkstra & node)
     {
         return node.y * costmap_->getSizeInCellsX() + node.x;
     }

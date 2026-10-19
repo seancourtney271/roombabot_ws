@@ -5,11 +5,11 @@ planner_server:
     planner_plugins: ["GridBased"]
     
     GridBased:
-      plugin: "roombabot_planning::DijkstraPlanner"
+      plugin: "roombabot_planning::AStarPlanner"
       # Multiplies each cell's inflation cost in the path-cost calculation. Higher
       # values make the planner favor standing off from edges/obstacles more strongly
       # over taking the shortest route, without changing what's passable at all (that's
-      # still the separate cost < 99 threshold in dijkstra_planner.cpp) -- so narrow
+      # still the separate cost < 99 threshold in astar_planner.cpp) -- so narrow
       # corridors stay traversable, but the path won't hug a boundary's edge when
       # there's room to move away from it.
       cost_penalty_weight: 5.0

@@ -95,3 +95,15 @@ ros2 topic pub /mission/goto_station std_msgs/msg/Int32 "{data: 0}" --once
 
 Step 6 - watch for arrival:
 ros2 topic echo /mission/arrived
+
+
+---------------------------------------------------------------------------------------------------
+Sim 
+---------------------------------------------------------------------------------------------------
+Terminal
+source install/setup.bash
+ros2 launch roombabot_bringup simulated_robot.launch.py world_name:=small_house
+
+New Terminal
+source install/setup.bash
+ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -r cmd_vel:=key_vel

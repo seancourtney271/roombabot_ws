@@ -33,7 +33,7 @@ ament_target_dependencies(dijkstra_planner
   nav2_costmap_2d
   pluginlib)
 
-add_executable(astar_planner src/astar_planner.cpp)
+add_library(astar_planner SHARED src/astar_planner.cpp)
 ament_target_dependencies(astar_planner
   rclcpp
   nav_msgs
@@ -41,7 +41,8 @@ ament_target_dependencies(astar_planner
   tf2_ros
   nav2_core
   nav2_util
-  nav2_costmap_2d)
+  nav2_costmap_2d
+  pluginlib)
 
 pluginlib_export_plugin_description_file(nav2_core global_planner_plugins.xml)
 
@@ -55,17 +56,19 @@ install(
 )
 
 install(TARGETS
-  astar_planner
-  DESTINATION lib/${PROJECT_NAME}
-)
-
-install(TARGETS
   dijkstra_planner
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
-
 )
+
+install(TARGETS
+  astar_planner
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
+
 
 install(FILES global_planner_plugins.xml
   DESTINATION share/${PROJECT_NAME}
