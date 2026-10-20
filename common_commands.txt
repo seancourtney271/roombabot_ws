@@ -102,7 +102,7 @@ Sim
 ---------------------------------------------------------------------------------------------------
 Terminal
 source install/setup.bash
-ros2 launch roombabot_bringup simulated_robot.launch.py world_name:=small_house
+ros2 launch roombabot_bringup simulated_robot.launch.py world_name:=small_house map_name:=small_house
 
 New Terminal
 source install/setup.bash

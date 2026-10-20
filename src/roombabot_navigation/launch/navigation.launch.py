@@ -12,6 +12,7 @@ def generate_launch_description():
 
     use_sim_time = LaunchConfiguration("use_sim_time")
     planner_config = LaunchConfiguration("planner_config")
+    smoother_config = LaunchConfiguration("smoother_config")
     map_name = LaunchConfiguration("map_name")
     use_docking = LaunchConfiguration("use_docking")
 
@@ -46,6 +47,17 @@ def generate_launch_description():
         description="Full path to the planner_server yaml file to load"
     )
 
+    smoother_config_arg = DeclareLaunchArgument(
+        "smoother_config",
+        default_value=os.path.join(
+            get_package_share_directory("roombabot_navigation"),
+            "config",
+            "smoother_server.yaml"
+        ),
+        description="Full path to the smoother_server yaml file to load"
+    )
+
+
     costmap_config = LaunchConfiguration("costmap_config")
     costmap_config_arg = DeclareLaunchArgument(
         "costmap_config",
@@ -68,6 +80,17 @@ def generate_launch_description():
         ],
     )
 
+    smoother_server = Node(
+        package="nav2_smoother",
+        executable="smoother_server",
+        name="smoother_server",
+        output="screen",
+        parameters=[
+            smoother_config,
+            {"use_sim_time": use_sim_time},
+        ],
+    )
+
     local_costmap_node = Node(
         package="roombabot_navigation",
         executable="local_costmap_node",
@@ -85,7 +108,7 @@ def generate_launch_description():
         name="lifecycle_manager_navigation",
         output="screen",
         parameters=[
-            {"node_names": ["planner_server", "local_costmap/local_costmap"]},
+            {"node_names": ["smoother_server", "planner_server", "local_costmap/local_costmap"]},
             {"use_sim_time": use_sim_time},
             {"autostart": True},
             # Raising this to 60s didn't actually fix the observed failure -- logs show
@@ -150,10 +173,12 @@ def generate_launch_description():
     return LaunchDescription([
         use_sim_time_arg,
         planner_config_arg,
+        smoother_config_arg,
         costmap_config_arg,
         map_name_arg,
         use_docking_arg,
         planner_server,
+        smoother_server,
         local_costmap_node,
         lifecycle_manager,
         pure_pursuit,

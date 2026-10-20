@@ -3,10 +3,12 @@
 #include "nav_msgs/msg/path.hpp"
 #include "nav_msgs/msg/occupancy_grid.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
+#include "rclcpp_action/rclcpp_action.hpp"
 
 #include "nav2_core/global_planner.hpp"
 #include "nav2_util/lifecycle_node.hpp"
 #include "nav2_costmap_2d/costmap_2d_ros.hpp"
+#include "nav2_msgs/action/smooth_path.hpp"
 
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_listener.h"
@@ -79,6 +81,8 @@ namespace roombabot_planning
             std::string global_frame_, name_;
 
             double cost_penalty_weight_;
+            // Smoother client init
+            rclcpp_action::Client<nav2_msgs::action::SmoothPath>::SharedPtr smooth_client;
 
             GraphNode worldToGrid(const geometry_msgs::msg::Pose & pose);
             geometry_msgs::msg::Pose gridToWorld(GraphNode & node);

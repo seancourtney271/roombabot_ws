@@ -144,6 +144,8 @@ def generate_launch_description():
             joint_state_broadcaster_spawner,
             wheel_controller_spawner,
             simple_controller,
-            noisy_controller_launch,
+            # Disabled: nothing consumes odom_noisy / base_footprint_noisy (the EKFs use
+            # roombabot_controller/odom). Re-add to compare against drifting odometry.
+            # noisy_controller_launch,
         ]
     )

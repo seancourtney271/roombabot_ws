@@ -36,11 +36,13 @@ ament_target_dependencies(dijkstra_planner
 add_library(astar_planner SHARED src/astar_planner.cpp)
 ament_target_dependencies(astar_planner
   rclcpp
+  rclcpp_action
   nav_msgs
   geometry_msgs
   tf2_ros
   nav2_core
   nav2_util
+  nav2_msgs
   nav2_costmap_2d
   pluginlib)
 
