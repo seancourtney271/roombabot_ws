@@ -29,6 +29,9 @@ ament_target_dependencies(docking_controller rclcpp std_msgs)
 add_executable(pure_pursuit src/pure_pursuit.cpp)
 ament_target_dependencies(pure_pursuit rclcpp geometry_msgs nav_msgs tf2_ros tf2_geometry_msgs)
 
+add_executable(pd_motion_planner src/pd_motion_planner.cpp)
+ament_target_dependencies(pd_motion_planner rclcpp geometry_msgs nav_msgs std_msgs tf2_ros tf2_geometry_msgs)
+
 install(
   DIRECTORY include
   DESTINATION include
@@ -37,6 +40,7 @@ install(
 install(TARGETS
   docking_controller
   pure_pursuit
+  pd_motion_planner
   DESTINATION lib/${PROJECT_NAME}
 )
 
