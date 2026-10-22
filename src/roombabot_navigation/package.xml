@@ -18,6 +18,12 @@
   <depend>nav2_costmap_2d</depend>
   <depend>nav2_smoother</depend>
 
+  <exec_depend>nav2_controller</exec_depend>
+  <exec_depend>nav2_planner</exec_depend>
+  <exec_depend>nav2_lifecycle_manager</exec_depend>
+  <exec_depend>roombabot_motion</exec_depend>
+  <exec_depend>roombabot_planning</exec_depend>
+
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
 

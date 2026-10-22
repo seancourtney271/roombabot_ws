@@ -6,6 +6,7 @@
 #include "tf2/utils.h"
 
 #include "nav2_util/node_utils.hpp"
+#include "pluginlib/class_list_macros.hpp"
 
 namespace roombabot_motion
 {
@@ -117,7 +118,7 @@ namespace roombabot_motion
         if(!transformPlan(robot_pose.header.frame_id))
         {
             RCLCPP_ERROR(logger, "Unable to transform Plan into robot's frame.");
-            return;
+            return cmd_vel;
         }
         auto next_pose = getNextPose(robot_pose);
 
@@ -138,12 +139,16 @@ namespace roombabot_motion
         double linear_error_derivative = (linear_error - previous_linear_error) / dt;
         double angular_error_derivative = (angular_error - previous_angular_error) / dt;
 
-        geometry_msgs::msg::Twist cmd_vel;
         cmd_vel.twist.linear.x = std::clamp(kp * linear_error + kd * linear_error_derivative, -max_linear_velocity, max_linear_velocity);
-        cmd_vel.twist.angular.z = std::clamp(kp * angular_error + kp * angular_error_derivative, -max_angular_velocity, max_angular_velocity);
+        cmd_vel.twist.angular.z = std::clamp(kp * angular_error + kd * angular_error_derivative, -max_angular_velocity, max_angular_velocity);
         
         last_cycle_time = clock->now();
         previous_linear_error = linear_error;
         previous_angular_error = angular_error;
+
+        cmd_vel.header.stamp = clock->now();
+        return cmd_vel;
     }
 }
+
+PLUGINLIB_EXPORT_CLASS(roombabot_motion::PDMotionPlanner, nav2_core::Controller)

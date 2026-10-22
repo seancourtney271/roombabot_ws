@@ -1,0 +1,10 @@
+<class_libraries>
+    <library path="pd_motion_planner">
+        <class type="roombabot_motion::PDMotionPlanner" base_class_type="nav2_core::Controller">
+        </class>
+    </library>
+    <library path="pure_pursuit_controller">
+        <class type="roombabot_motion::PurePursuitController" base_class_type="nav2_core::Controller">
+        </class>
+    </library>
+</class_libraries>

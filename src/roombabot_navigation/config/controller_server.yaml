@@ -23,7 +23,13 @@ controller_server:
       stateful: true
 
     FollowPath:
-      plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
+      plugin: "roombabot_motion::PurePursuitController"
+      look_ahead_distance: 0.5
+      maximum_linear_velocity: 0.2
+      maximum_angular_velocity: 1.0
+      heading_error_threshold: 0.5
+      occupied_threshold: 253
+      stuck_timeout: 5.0
 
 local_costmap:
   local_costmap:
@@ -35,6 +41,12 @@ local_costmap:
       use_sim_time: true
       robot_radius: 0.18
       resolution: 0.05
+      # Without a rolling window the costmap is a fixed 5x5 m box at the map origin
+      # (0,0)-(4.98,4.98); the robot driving outside it makes the obstacle layer warn
+      # "Sensor origin ... out of map bounds". Rolling window keeps it centered on the robot.
+      rolling_window: true
+      width: 3
+      height: 3
       always_send_full_costmap: true
 
       plugins: ["obstacle_layer", "inflation_layer"]
