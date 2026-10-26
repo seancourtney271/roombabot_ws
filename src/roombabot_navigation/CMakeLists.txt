@@ -43,7 +43,7 @@ install(TARGETS
 )
 
 install(
-  DIRECTORY config launch
+  DIRECTORY config launch behavior_tree
   DESTINATION share/${PROJECT_NAME}
 )
 
