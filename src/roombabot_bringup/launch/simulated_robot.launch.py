@@ -1,7 +1,7 @@
 import os
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
-from launch.conditions import IfCondition, UnlessCondition
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
@@ -9,7 +9,6 @@ from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
     use_slam = LaunchConfiguration("use_slam")
-    map_name = LaunchConfiguration("map_name")
 
     use_slam_arg = DeclareLaunchArgument(
         "use_slam",
@@ -22,12 +21,6 @@ def generate_launch_description():
         description="World file in roombabot_description/worlds (without .world)"
     )
 
-    map_name_arg = DeclareLaunchArgument(
-        "map_name",
-        default_value="small_house",
-        description="Map in roombabot_mapping/maps to localize and navigate against"
-    )
-
     gazebo = IncludeLaunchDescription(
         os.path.join(
             get_package_share_directory("roombabot_description"),
@@ -38,7 +31,7 @@ def generate_launch_description():
             "world_name": LaunchConfiguration("world_name")
         }.items(),
     )
-    
+
     controller = IncludeLaunchDescription(
         os.path.join(
             get_package_share_directory("roombabot_controller"),
@@ -50,7 +43,7 @@ def generate_launch_description():
             "use_python": "False"
         }.items(),
     )
-    
+
     joystick = IncludeLaunchDescription(
         os.path.join(
             get_package_share_directory("roombabot_controller"),
@@ -62,47 +55,6 @@ def generate_launch_description():
         }.items()
     )
 
-    local_localization = IncludeLaunchDescription(
-        os.path.join(
-            get_package_share_directory("roombabot_localization"),
-            "launch",
-            "local_localization.launch.py"
-        ),
-        launch_arguments={
-            "ekf_config": os.path.join(
-                get_package_share_directory("roombabot_localization"),
-                "config",
-                "ekf_simulation.yaml"
-            ),
-        }.items(),
-    )
-
-    localization = IncludeLaunchDescription(
-        os.path.join(
-            get_package_share_directory("roombabot_localization"),
-            "launch",
-            "global_localization.launch.py"
-        ),
-        launch_arguments={
-            "map_name": map_name,
-            "use_sim_time": "True"
-        }.items(),
-        condition=UnlessCondition(use_slam)
-    )
-
-    navigation = IncludeLaunchDescription(
-        os.path.join(
-            get_package_share_directory("roombabot_navigation"),
-            "launch",
-            "navigation.launch.py"
-        ),
-        launch_arguments={
-            "map_name": map_name,
-            "use_sim_time": "True"
-        }.items(),
-        condition=UnlessCondition(use_slam)
-    )
-
     slam = IncludeLaunchDescription(
         os.path.join(
             get_package_share_directory("roombabot_mapping"),
@@ -110,20 +62,6 @@ def generate_launch_description():
             "slam.launch.py"
         ),
         condition=IfCondition(use_slam)
-    )
-
-    rviz_localization = Node(
-        package="rviz2",
-        executable="rviz2",
-        arguments=["-d", os.path.join(
-                get_package_share_directory("roombabot_localization"),
-                "rviz",
-                "global_localization.rviz"
-            )
-        ],
-        output="screen",
-        parameters=[{"use_sim_time": True}],
-        condition=UnlessCondition(use_slam)
     )
 
     rviz_slam = Node(
@@ -139,18 +77,13 @@ def generate_launch_description():
         parameters=[{"use_sim_time": True}],
         condition=IfCondition(use_slam)
     )
-    
+
     return LaunchDescription([
         use_slam_arg,
         world_name_arg,
-        map_name_arg,
         gazebo,
         controller,
         joystick,
-        local_localization,
-        localization,
-        navigation,
         slam,
-        rviz_localization,
         rviz_slam
     ])

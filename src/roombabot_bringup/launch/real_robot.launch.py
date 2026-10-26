@@ -1,7 +1,7 @@
 import os
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
-from launch.conditions import IfCondition, UnlessCondition
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
@@ -10,7 +10,6 @@ from ament_index_python.packages import get_package_share_directory
 def generate_launch_description():
     use_slam = LaunchConfiguration("use_slam")
     map_name = LaunchConfiguration("map_name")
-    use_docking = LaunchConfiguration("use_docking")
     motor_port = LaunchConfiguration("motor_port")
     imu_port = LaunchConfiguration("imu_port")
     encoder_ticks_per_revolution = LaunchConfiguration("encoder_ticks_per_revolution")
@@ -23,17 +22,7 @@ def generate_launch_description():
     map_name_arg = DeclareLaunchArgument(
         "map_name",
         default_value="bedroom",
-        description="Name of the saved map (folder under roombabot_mapping/maps) to localize against when use_slam is false"
-    )
-
-    use_docking_arg = DeclareLaunchArgument(
-        "use_docking",
-        default_value="false",
-        description="Whether to run docking_controller for a final approach after "
-                    "coarse navigation. Defaults false: stations are taught by driving "
-                    "the robot to them, so the recorded pose is already the final pose "
-                    "and there is nothing left to servo onto. Kept as a hook for a "
-                    "future final-approach sensor."
+        description="Name of the saved map (folder under roombabot_mapping/maps) used by slam"
     )
 
     # All three USB devices are addressed by udev symlink rather than /dev/ttyUSB*.
@@ -121,41 +110,6 @@ def generate_launch_description():
         }],
     )
 
-    global_localization = IncludeLaunchDescription(
-        os.path.join(
-            get_package_share_directory("roombabot_localization"),
-            "launch",
-            "global_localization.launch.py"
-        ),
-        launch_arguments={
-            "map_name": map_name,
-            "use_sim_time": "False"
-        }.items(),
-        condition=UnlessCondition(use_slam)
-    )
-
-    local_localization = IncludeLaunchDescription(
-        os.path.join(
-            get_package_share_directory("roombabot_localization"),
-            "launch",
-            "local_localization.launch.py"
-        ),
-    )
-
-    navigation = IncludeLaunchDescription(
-        os.path.join(
-            get_package_share_directory("roombabot_navigation"),
-            "launch",
-            "navigation.launch.py"
-        ),
-        launch_arguments={
-            "map_name": map_name,
-            "use_sim_time": "False",
-            "use_docking": use_docking
-        }.items(),
-        condition=UnlessCondition(use_slam)
-    )
-
     slam = IncludeLaunchDescription(
         os.path.join(
             get_package_share_directory("roombabot_mapping"),
@@ -185,7 +139,6 @@ def generate_launch_description():
     return LaunchDescription([
         use_slam_arg,
         map_name_arg,
-        use_docking_arg,
         motor_port_arg,
         imu_port_arg,
         encoder_ticks_arg,
@@ -194,9 +147,6 @@ def generate_launch_description():
         controller,
         joystick,
         imu_bridge,
-        local_localization,
-        global_localization,
-        navigation,
         slam,
         foxglove_bridge
     ])

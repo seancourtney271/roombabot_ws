@@ -2,21 +2,13 @@
 <root BTCPP_format="4">
   <BehaviorTree ID="Untitled">
     <Sequence>
-      <ComputePathToPose start=""
-                         use_start=""
-                         goal="{goal}"
-                         planner_id="&quot;GridBased&quot;"
-                         server_name=""
-                         server_timeout=""
-                         path="{path}"
-                         error_code_id=""/>
+      <ComputePathToPose goal="{goal}"
+                         planner_id="GridBased"
+                         path="{path}"/>
       <FollowPath path="{path}"
                   controller_id="FollowPath"
-                  goal_checker_id=""
-                  progress_checker_id=""
-                  server_name=""
-                  server_timeout=""
-                  error_code_id=""/>
+                  goal_checker_id="general_goal_checker"
+                  progress_checker_id="progress_checker"/>
     </Sequence>
   </BehaviorTree>
 

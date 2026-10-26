@@ -2,8 +2,9 @@ import os
 from ament_index_python.packages import get_package_share_directory
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.conditions import IfCondition
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.actions import Node
 
 def generate_launch_description():
@@ -14,8 +15,80 @@ def generate_launch_description():
     )
     use_sim_time = LaunchConfiguration("use_sim_time")
 
+    map_name_arg = DeclareLaunchArgument(
+        "map_name",
+        default_value="small_house",
+        description="Map in roombabot_mapping/maps to localize and navigate against"
+    )
+    map_name = LaunchConfiguration("map_name")
+
+    use_localization_arg = DeclareLaunchArgument(
+        "use_localization",
+        default_value="True",
+        description="Also start the EKF, map_server and AMCL"
+    )
+    use_localization = LaunchConfiguration("use_localization")
+
+    use_rviz_arg = DeclareLaunchArgument(
+        "use_rviz",
+        default_value="True",
+        description="Open RViz with the localization/navigation view"
+    )
+
+    ekf_config_arg = DeclareLaunchArgument(
+        "ekf_config",
+        default_value=PathJoinSubstitution([
+            get_package_share_directory("roombabot_localization"),
+            "config",
+            PythonExpression([
+                "'ekf_simulation.yaml' if '", use_sim_time, "'.lower() == 'true' else 'ekf.yaml'"
+            ])
+        ]),
+        description="robot_localization yaml. Defaults to ekf_simulation.yaml when "
+                    "use_sim_time is true, ekf.yaml otherwise"
+    )
+
+    local_localization = IncludeLaunchDescription(
+        os.path.join(
+            get_package_share_directory("roombabot_localization"),
+            "launch",
+            "local_localization.launch.py"
+        ),
+        launch_arguments={
+            "ekf_config": LaunchConfiguration("ekf_config")
+        }.items(),
+        condition=IfCondition(use_localization)
+    )
+
+    global_localization = IncludeLaunchDescription(
+        os.path.join(
+            get_package_share_directory("roombabot_localization"),
+            "launch",
+            "global_localization.launch.py"
+        ),
+        launch_arguments={
+            "map_name": map_name,
+            "use_sim_time": use_sim_time
+        }.items(),
+        condition=IfCondition(use_localization)
+    )
+
+    rviz = Node(
+        package="rviz2",
+        executable="rviz2",
+        arguments=["-d", os.path.join(
+                get_package_share_directory("roombabot_localization"),
+                "rviz",
+                "nav2_setup.rviz"
+            )
+        ],
+        output="screen",
+        parameters=[{"use_sim_time": use_sim_time}],
+        condition=IfCondition(LaunchConfiguration("use_rviz"))
+    )
+
     # smoother first: the planner plugin waits for the smooth_path action server while configuring
-    lifecycle_nodes = ["smoother_server", "controller_server", "planner_server"]
+    lifecycle_nodes = ["smoother_server", "controller_server", "planner_server", "bt_navigator"]
 
     nav2_controller_server = Node(
         package="nav2_controller",
@@ -56,6 +129,19 @@ def generate_launch_description():
         ]
     )
 
+    nav2_bt_navigator = Node(
+            package="nav2_bt_navigator",
+            executable="bt_navigator",
+            name = "bt_navigator",
+            output="screen",
+            parameters=[os.path.join(
+                get_package_share_directory("roombabot_navigation"),
+                "config",
+                "bt_navigator.yaml"),
+                {"use_sim_time": use_sim_time}
+            ]
+        )
+
     nav2_lifecycle_manager = Node(
         package="nav2_lifecycle_manager",
         executable="lifecycle_manager",
@@ -70,8 +156,16 @@ def generate_launch_description():
 
     return LaunchDescription([
         use_sim_time_arg,
+        map_name_arg,
+        use_localization_arg,
+        use_rviz_arg,
+        ekf_config_arg,
+        local_localization,
+        global_localization,
+        rviz,
         nav2_controller_server,
         nav2_planner_server,
         nav2_smoother_server,
+        nav2_bt_navigator,
         nav2_lifecycle_manager,
     ])
