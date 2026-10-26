@@ -3,7 +3,9 @@
 Practical step-by-step guide. For *why* things are built this way, see
 [README.md](README.md); for the ESP32 wire format, see
 [src/roombabot_firmware/firmware/PROTOCOL.md](src/roombabot_firmware/firmware/PROTOCOL.md);
-for a flat command cheat-sheet, see [common_commands.txt](common_commands.txt).
+for a flat command cheat-sheet, see [Common commands](README.md#common-commands).
+For how the launch files fit together (robot / map provider / navigation / mission
+layers), see [Launch architecture](README.md#launch-architecture).
 
 Assumes ROS 2 Jazzy already installed. Commands below are for a bash shell (the Pi, or
 a Linux dev machine for simulation). `<ws>` means the absolute path to this workspace.
@@ -47,45 +49,32 @@ retype them every session.
 No ESP32s, no lidar, no udev rules needed — Gazebo supplies simulated joints, IMU and
 lidar through `gz_ros2_control` and the `ros_gz_bridge`.
 
-### 1. Bring up Gazebo + controllers + EKF
+Every session is **two terminals, robot first**: the robot launch (this section's step
+1), then one mission launch (step 2 to build a map, step 3 to navigate on one). Run
+exactly one mission launch at a time — see
+[Launch architecture](README.md#launch-architecture) for why.
+
+### 1. Terminal 1: the simulated robot
 
 ```bash
-ros2 launch roombabot_bringup simulated_robot.launch.py world_name:=empty
+ros2 launch roombabot_bringup simulated_robot.launch.py world_name:=small_house
 ```
 
-This starts Gazebo, spawns the robot, `diff_drive_controller`, joystick/twist_mux
-plumbing, and the EKF (pointed at `ekf_simulation.yaml` automatically). Only the
-`empty` world ships in this workspace (the AWS RoboMaker house/warehouse worlds were
-dropped along with the camera demo assets) — drop a `.world` file into
-`src/roombabot_description/worlds/` and pass `world_name:=<name>` to use another.
+This starts Gazebo, spawns the robot, `diff_drive_controller`, the joystick/twist_mux
+plumbing, and the EKF (pointed at `ekf_simulation.yaml`). Nothing else: no map
+provider, no Nav2. Worlds shipped in this workspace are `empty` and `small_house`; drop
+a `.world` file into `src/roombabot_description/worlds/` and pass `world_name:=<name>`
+to use another.
 
-By default it also brings up **localization against a saved map** (`use_slam:=false`).
-Add `use_slam:=true` instead if you're building a new map (see step 2).
-
-> **Gotcha:** the localization launch file's own default map is `small_house`, which
-> isn't in this workspace's `maps/` folder (only `bedroom`, `cube`, `demo`, `house`
-> came over). Even though `simulated_robot.launch.py` doesn't explicitly forward a
-> `map_name` argument, ROS 2 launch shares `LaunchConfiguration` values across included
-> files — a nested `DeclareLaunchArgument("map_name", ...)` only applies its own
-> default when nothing has already set that name. So passing `map_name:=` on the
-> command line still works even though `--show-args` on the top-level file won't
-> list it:
->
-> ```bash
-> ros2 launch roombabot_bringup simulated_robot.launch.py map_name:=bedroom
-> ```
->
-> If that ever stops working (e.g. after a launch API change), the fallback is to
-> build your own map first (next section) — that avoids needing an existing one at all.
-
-RViz opens automatically (`global_localization.rviz` or `slam.rviz`, matching
-`use_slam`) with `use_sim_time:=true` already set.
-
-### 2. Build a map and teach stations (in sim)
+### 2. Terminal 2: build a map and teach stations
 
 ```bash
-ros2 launch roombabot_bringup simulated_robot.launch.py use_slam:=true
+ros2 launch roombabot_bringup mapping.launch.py map_name:=demo
 ```
+
+This starts `slam_toolbox`, `map_saver_server`, `station_recorder`, Nav2 and RViz
+(`slam.rviz`). Add `use_navigation:=false` for plain teleop mapping without Nav2.
+`map_name` names the map being built; it is where `stations.yaml` gets saved.
 
 Drive the robot around (see [Teleop](#teleop-and-foxglove-both)) until the map in RViz
 covers the area you need. Then, **while still driving**, park at each delivery station
@@ -110,27 +99,35 @@ ros2 service call /save_stations std_srvs/srv/Trigger
 ros2 service call /map_saver_server/save_map nav2_msgs/srv/SaveMap "{map_topic: map, map_url: '<ws>/src/roombabot_mapping/maps/demo/map', image_format: pgm, map_mode: trinary, free_thresh: 0.25, occupied_thresh: 0.65}"
 ```
 
-Ctrl+C, rebuild so the new map/stations reach the install space, then relaunch:
+Ctrl+C the **mission** launch only (leave the robot launch running if you like), then
+rebuild so the new map/stations reach the install space:
 
 ```bash
 colcon build --packages-select roombabot_mapping
 source install/setup.bash
-ros2 launch roombabot_bringup simulated_robot.launch.py map_name:=demo
 ```
 
-### 3. Run the delivery mission (in sim)
-
-With localization running (`use_slam:=false`, a `map_name` that has `stations.yaml`),
-set the robot's starting pose (2D Pose Estimate in RViz, or the CLI form below), then:
+### 3. Terminal 2: navigate on a saved map
 
 ```bash
-ros2 topic pub /mission/goto_station std_msgs/msg/Int32 "{data: 0}" --once
-ros2 topic echo /mission/arrived   # fires once the robot reaches the station
+ros2 launch roombabot_bringup localized_navigation.launch.py map_name:=demo
 ```
 
-`use_docking` is `false` by default — coarse navigation *is* the final approach here
-(stations are taught by driving, so there's no residual error to remove). See
-[README.md](README.md#stations) if you want the docking stub in the loop anyway.
+This starts `map_server` + AMCL on `demo/map.yaml`, Nav2 and RViz (`nav2_setup.rviz`).
+Set the robot's starting pose first (2D Pose Estimate in RViz, or the CLI form below —
+`amcl.yaml` seeds `(0,0,0)` otherwise), then send a goal with 2D Goal Pose / Nav2 Goal
+in RViz.
+
+```bash
+ros2 topic pub -1 /initialpose geometry_msgs/msg/PoseWithCovarianceStamped "{header: {frame_id: 'map'}, pose: {pose: {position: {x: 0.0, y: 0.0, z: 0.0}, orientation: {w: 1.0}}}}"
+```
+
+> **Station missions are currently not launched.** `mission_commander`,
+> `waypoint_commander` and the `docking_controller` stub (the
+> `/mission/goto_station` → `/mission/arrived` flow) were started by
+> `navigation.launch_old.py`; the Nav2-plugin launch files don't start them. Stations
+> can still be recorded and saved; sending the robot to one by id needs those nodes
+> brought back into a launch file.
 
 ---
 
@@ -188,7 +185,7 @@ ros2 topic echo /mission/arrived   # fires once the robot reaches the station
 With the robot up on blocks (wheels off the ground):
 
 ```bash
-ros2 launch roombabot_bringup real_robot.launch.py use_slam:=true
+ros2 launch roombabot_bringup real_robot.launch.py
 ```
 
 - `ros2 topic hz /imu/data` — should sit near 100 Hz. If it's silent, check
@@ -212,15 +209,20 @@ Only put the robot on the ground once these all check out.
 
 ### 2. Build a map and teach stations (on hardware)
 
-Same procedure as simulation, minus `use_sim_time`:
+Same procedure as simulation, minus Gazebo. Terminal 1 is the robot, Terminal 2 the
+mapping mission with the hardware settings (`use_sim_time:=False`, and no RViz on the Pi
+— watch through Foxglove at `ws://<pi-ip>:8765`):
 
 ```bash
-ros2 launch roombabot_bringup real_robot.launch.py use_slam:=true map_name:=demo
+# Terminal 1
+ros2 launch roombabot_bringup real_robot.launch.py
+# Terminal 2
+ros2 launch roombabot_bringup mapping.launch.py map_name:=demo use_sim_time:=False use_rviz:=False
 ```
 
 Drive with a joystick (see [Teleop](#teleop-and-foxglove-both)) past every area the
 robot needs to navigate, parking at and recording each station exactly as in the
-[simulation walkthrough](#2-build-a-map-and-teach-stations-in-sim) — the
+[simulation walkthrough](#2-terminal-2-build-a-map-and-teach-stations) — the
 `record_station` / `save_stations` calls are identical on hardware.
 
 ```bash
@@ -230,7 +232,7 @@ ros2 service call /save_stations std_srvs/srv/Trigger
 ros2 service call /map_saver_server/save_map nav2_msgs/srv/SaveMap "{map_topic: map, map_url: '<ws>/src/roombabot_mapping/maps/demo/map', image_format: pgm, map_mode: trinary, free_thresh: 0.25, occupied_thresh: 0.65}"
 ```
 
-Ctrl+C, then:
+Ctrl+C the mapping launch, then:
 
 ```bash
 colcon build --packages-select roombabot_mapping
@@ -240,14 +242,17 @@ source install/setup.bash
 ### 3. Localize and navigate (on hardware)
 
 ```bash
-ros2 launch roombabot_bringup real_robot.launch.py use_slam:=false map_name:=demo
+# Terminal 1 (if not still running)
+ros2 launch roombabot_bringup real_robot.launch.py
+# Terminal 2
+ros2 launch roombabot_bringup localized_navigation.launch.py map_name:=demo use_sim_time:=False use_rviz:=False
 ```
 
-This brings up: `esp32_motor` hardware interface + `diff_drive_controller`, the
-`esp32_imu` bridge, the RPLIDAR driver, AMCL against `demo/map.yaml`, the EKF, the
-Dijkstra-based `planner_server` + local costmap, `pure_pursuit`, `waypoint_commander`,
-`mission_commander`, the `docking_controller` stub, and the Foxglove bridge
-(`ws://<pi-ip>:8765`).
+Together these bring up: the `esp32_motor` hardware interface + `diff_drive_controller`,
+the `esp32_imu` bridge, the RPLIDAR driver, the EKF and the Foxglove bridge (robot
+launch), then `map_server` + AMCL against `demo/map.yaml` and the Nav2 servers
+(`planner_server` with the A\*/Dijkstra plugin, `controller_server` with
+`PurePursuitController`, smoother, `bt_navigator`) from the mission launch.
 
 Set the robot's real starting pose — `amcl.yaml` seeds `(0,0,0)` on every launch, which
 is very unlikely to be where the robot actually is:
@@ -256,13 +261,8 @@ is very unlikely to be where the robot actually is:
 ros2 topic pub -1 /initialpose geometry_msgs/msg/PoseWithCovarianceStamped "{header: {frame_id: 'map'}, pose: {pose: {position: {x: 0.0, y: 0.0, z: 0.0}, orientation: {w: 1.0}}}}"
 ```
 
-(or set it via 2D Pose Estimate in Foxglove/RViz, dragging to the robot's true
-position and heading). Then run the mission:
-
-```bash
-ros2 topic pub /mission/goto_station std_msgs/msg/Int32 "{data: 0}" --once
-ros2 topic echo /mission/arrived
-```
+(or set it via 2D Pose Estimate in Foxglove, dragging to the robot's true position and
+heading). Then send a goal from Foxglove, or with the `navigate_to_pose` action.
 
 ### 4. Optional: obstacle e-stop lock
 
@@ -308,6 +308,6 @@ checks in step 1 above.
 | Heading drifts steadily in one direction | Gyro Z sign is inverted, or the ESP32's own startup bias calibration ran while the robot was moving. Re-verify the sign check; `imu_bridge`'s own `calibration_samples` (default 200) is a *second*, residual bias pass on top of whatever the ESP32 already does. |
 | `nav2_lifecycle_manager` logs a bond connect-then-dead loop | Known, carried over from the bumperbot: `bond_timeout` is set to `0.0` (disabled) in both lifecycle managers because of Pi undervoltage (`vcgencmd get_throttled`). Check power delivery before re-enabling it. |
 | AMCL "shifts then suddenly jumps" | `recovery_alpha_slow`/`recovery_alpha_fast` are both `0.0` in `amcl.yaml` (augmented-MCL recovery disabled), inherited unchanged. Worth revisiting now that camera/aruco load is gone. |
-| Simulation localization can't find its map | See the [`map_name` gotcha](#1-bring-up-gazebo--controllers--ekf) above — the default is `small_house`, which isn't in this workspace. Pass `map_name:=` explicitly. |
+| Map and lidar visibly shift, or the Nav2 panel shows Navigation "inactive" | Two copies of something are running (two mission launches, a leftover EKF/AMCL, or a stale `lifecycle_manager_navigation` from an earlier session). Stop everything, then `ps -eo pid,lstart,comm \| grep -E "ekf\|amcl\|lifecycle\|bt_nav\|gz"` must print nothing before relaunching. |
 | Costmap/planner treats a big chunk of open floor as "unknown = wall" | `track_unknown_space: false` in both costmap configs is intentional (`DijkstraPlanner` treats unknown cells as impassable) — make sure SLAM actually swept the area, not just drove past it at a distance. |
 | A too-large or too-small robot footprint in the costmap | `robot_radius` (0.18 m, i.e. 0.17 m body + 1 cm margin) lives in both `costmap.yaml` and `planner_server.yaml` and must match `body_diameter` in `roombabot.urdf.xacro` if you ever re-measure the chassis. |

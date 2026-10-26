@@ -1,29 +1,19 @@
 import os
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
-from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 
+# Robot layer only (hardware): drivers, controllers, teleop plumbing and the EKF that
+# owns odom -> base_footprint. Map provider (AMCL or SLAM) and Nav2 come from
+# localized_navigation.launch.py / mapping.launch.py.
+
 
 def generate_launch_description():
-    use_slam = LaunchConfiguration("use_slam")
-    map_name = LaunchConfiguration("map_name")
     motor_port = LaunchConfiguration("motor_port")
     imu_port = LaunchConfiguration("imu_port")
     encoder_ticks_per_revolution = LaunchConfiguration("encoder_ticks_per_revolution")
-
-    use_slam_arg = DeclareLaunchArgument(
-        "use_slam",
-        default_value="false"
-    )
-
-    map_name_arg = DeclareLaunchArgument(
-        "map_name",
-        default_value="bedroom",
-        description="Name of the saved map (folder under roombabot_mapping/maps) used by slam"
-    )
 
     # All three USB devices are addressed by udev symlink rather than /dev/ttyUSB*.
     # With two ESP32s and the lidar on the bus, kernel enumeration order is not stable
@@ -110,17 +100,12 @@ def generate_launch_description():
         }],
     )
 
-    slam = IncludeLaunchDescription(
+    local_localization = IncludeLaunchDescription(
         os.path.join(
-            get_package_share_directory("roombabot_mapping"),
+            get_package_share_directory("roombabot_localization"),
             "launch",
-            "slam.launch.py"
+            "local_localization.launch.py"
         ),
-        launch_arguments={
-            "map_name": map_name,
-            "use_sim_time": "False"
-        }.items(),
-        condition=IfCondition(use_slam)
     )
 
     # --- FOXGLOVE BRIDGE SECTION ---
@@ -137,8 +122,6 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        use_slam_arg,
-        map_name_arg,
         motor_port_arg,
         imu_port_arg,
         encoder_ticks_arg,
@@ -147,6 +130,6 @@ def generate_launch_description():
         controller,
         joystick,
         imu_bridge,
-        slam,
+        local_localization,
         foxglove_bridge
     ])

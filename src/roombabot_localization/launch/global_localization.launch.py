@@ -72,11 +72,10 @@ def generate_launch_description():
             {"node_names": lifecycle_nodes},
             {"use_sim_time": use_sim_time},
             {"autostart": True},
-            # See navigation.launch.py's lifecycle_manager_navigation for the full
-            # reasoning -- raising bond_timeout didn't fix the real problem (the Pi,
-            # confirmed via `vcgencmd get_throttled` to have real undervoltage events,
-            # can't reliably sustain the bond heartbeat once connected), so bond
-            # monitoring is disabled entirely here too rather than just given more time.
+            # Raising bond_timeout didn't fix the real problem (the Pi, confirmed via
+            # `vcgencmd get_throttled` to have real undervoltage events, can't reliably
+            # sustain the bond heartbeat once connected), so bond monitoring is
+            # disabled entirely rather than just given more time.
             {"bond_timeout": 0.0},
         ],
     )

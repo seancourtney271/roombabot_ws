@@ -1,20 +1,15 @@
 import os
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
-from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
+
+# Robot layer only (simulated): Gazebo, controllers, teleop plumbing and the EKF that
+# owns odom -> base_footprint. Map provider (AMCL or SLAM) and Nav2 come from
+# localized_navigation.launch.py / mapping.launch.py.
 
 
 def generate_launch_description():
-    use_slam = LaunchConfiguration("use_slam")
-
-    use_slam_arg = DeclareLaunchArgument(
-        "use_slam",
-        default_value="false"
-    )
-
     world_name_arg = DeclareLaunchArgument(
         "world_name",
         default_value="small_house",
@@ -55,35 +50,25 @@ def generate_launch_description():
         }.items()
     )
 
-    slam = IncludeLaunchDescription(
+    local_localization = IncludeLaunchDescription(
         os.path.join(
-            get_package_share_directory("roombabot_mapping"),
+            get_package_share_directory("roombabot_localization"),
             "launch",
-            "slam.launch.py"
+            "local_localization.launch.py"
         ),
-        condition=IfCondition(use_slam)
-    )
-
-    rviz_slam = Node(
-        package="rviz2",
-        executable="rviz2",
-        arguments=["-d", os.path.join(
-                get_package_share_directory("roombabot_mapping"),
-                "rviz",
-                "slam.rviz"
-            )
-        ],
-        output="screen",
-        parameters=[{"use_sim_time": True}],
-        condition=IfCondition(use_slam)
+        launch_arguments={
+            "ekf_config": os.path.join(
+                get_package_share_directory("roombabot_localization"),
+                "config",
+                "ekf_simulation.yaml"
+            ),
+        }.items(),
     )
 
     return LaunchDescription([
-        use_slam_arg,
         world_name_arg,
         gazebo,
         controller,
         joystick,
-        slam,
-        rviz_slam
+        local_localization,
     ])
