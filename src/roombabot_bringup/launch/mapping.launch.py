@@ -1,8 +1,8 @@
 import os
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
+from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument, TimerAction
 from launch.conditions import IfCondition
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 
@@ -41,6 +41,12 @@ def generate_launch_description():
         description="Open RViz with the SLAM view (use False on the Pi)"
     )
 
+    use_exploration_arg = DeclareLaunchArgument(
+        "use_exploration",
+        default_value="False",
+        description="Autonomously explore frontiers via Nav2 (needs use_navigation:=True)"
+    )
+
     slam = IncludeLaunchDescription(
         os.path.join(
             get_package_share_directory("roombabot_mapping"),
@@ -65,6 +71,30 @@ def generate_launch_description():
         condition=IfCondition(LaunchConfiguration("use_navigation"))
     )
 
+    # Delayed so Nav2's lifecycle manager has activated bt_navigator and the global costmap
+    # before the first goal is sent.
+    explore = TimerAction(
+        period=10.0,
+        actions=[Node(
+            package="roombabot_mapping",
+            executable="frontier_explorer",
+            name="frontier_explorer",
+            output="screen",
+            parameters=[
+                os.path.join(
+                    get_package_share_directory("roombabot_mapping"),
+                    "config",
+                    "explore.yaml"
+                ),
+                {"use_sim_time": use_sim_time}
+            ]
+        )],
+        condition=IfCondition(PythonExpression([
+            "'", LaunchConfiguration("use_exploration"), "'.lower() == 'true' and '",
+            LaunchConfiguration("use_navigation"), "'.lower() == 'true'"
+        ]))
+    )
+
     rviz = Node(
         package="rviz2",
         executable="rviz2",
@@ -84,7 +114,9 @@ def generate_launch_description():
         map_name_arg,
         use_navigation_arg,
         use_rviz_arg,
+        use_exploration_arg,
         slam,
         navigation,
+        explore,
         rviz,
     ])

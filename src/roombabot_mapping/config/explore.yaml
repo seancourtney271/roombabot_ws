@@ -1,0 +1,13 @@
+# frontier_explorer (roombabot_mapping): reads /map from slam_toolbox and sends
+# NavigateToPose goals to Nav2.
+frontier_explorer:
+  ros__parameters:
+    robot_frame: base_footprint
+    min_frontier_size: 0.3       # m: ignore tiny noisy frontiers
+    obstacle_clearance: 0.3      # m: keep goals out of the inflated costmap zone
+    min_goal_distance: 0.4       # m: frontiers this close are treated as reached
+    blacklist_radius: 0.5        # m: area ruled out around a failed goal
+    goal_timeout: 60.0           # s before an unfinished goal is cancelled and blacklisted
+    planner_frequency: 1.0       # Hz
+    empty_cycles_to_finish: 5    # consecutive cycles without frontiers before finishing
+    return_to_start: true

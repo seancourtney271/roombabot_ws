@@ -66,7 +66,7 @@ def generate_launch_description():
     behavior_tree = os.path.join(
         get_package_share_directory("roombabot_navigation"),
         "behavior_trees",
-        "simple_navigation_w_replanning_and_recoveries.xml"
+        "navigate_with_recovery.xml"
     )
 
     nav2_bt_navigator = Node(

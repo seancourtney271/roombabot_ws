@@ -14,12 +14,18 @@ find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2 REQUIRED)
+find_package(rclcpp_action REQUIRED)
+find_package(action_msgs REQUIRED)
+find_package(nav2_msgs REQUIRED)
 find_package(roombabot_msgs REQUIRED)
 
 include_directories(include)
 
 add_executable(mapping_with_known_poses src/mapping_with_known_poses.cpp)
 ament_target_dependencies(mapping_with_known_poses rclcpp sensor_msgs tf2_ros nav_msgs geometry_msgs tf2)
+
+add_executable(frontier_explorer src/frontier_explorer.cpp)
+ament_target_dependencies(frontier_explorer rclcpp rclcpp_action action_msgs nav2_msgs nav_msgs geometry_msgs tf2 tf2_ros)
 
 ament_python_install_package(${PROJECT_NAME})
 
@@ -30,6 +36,7 @@ install(
 
 install(TARGETS
   mapping_with_known_poses
+  frontier_explorer
   DESTINATION lib/${PROJECT_NAME}
 )
 

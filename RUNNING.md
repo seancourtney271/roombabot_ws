@@ -76,6 +76,13 @@ This starts `slam_toolbox`, `map_saver_server`, `station_recorder`, Nav2 and RVi
 (`slam.rviz`). Add `use_navigation:=false` for plain teleop mapping without Nav2.
 `map_name` names the map being built; it is where `stations.yaml` gets saved.
 
+**Autonomous exploration (optional).** Add `use_exploration:=true` and the in-repo
+`frontier_explorer` node drives the robot to unexplored frontiers through Nav2 instead of
+teleoperating (it needs Nav2, so not with `use_navigation:=false`). Parameters are in
+`roombabot_mapping/config/explore.yaml`. Frontiers Nav2 can't reach are blacklisted; when
+none remain it returns to the start pose and logs that it is finished. It does not save
+the map -- do that with the `save_map` call below.
+
 Drive the robot around (see [Teleop](#teleop-and-foxglove-both)) until the map in RViz
 covers the area you need. Then, **while still driving**, park at each delivery station
 and record it:
