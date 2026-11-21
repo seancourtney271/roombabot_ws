@@ -95,7 +95,7 @@ it does not exist yet). Design decisions made so that it drops in cleanly:
                     +----------------------+
                     |  Raspberry Pi        |
                     |                      |
-  /dev/esp32_motor  |  ros2_control @100Hz |   MotorCommand  -->
+  /dev/esp32_motor  |  ros2_control @50Hz |   MotorCommand  -->
   <===== USB =======|    RoombabotInterface|   <-- MotorState
                     |                      |
   /dev/esp32_imu    |  imu_bridge          |   <-- ImuState
@@ -118,7 +118,7 @@ and defined in
 [`esp32_protocol.hpp`](src/roombabot_firmware/include/roombabot_firmware/esp32_protocol.hpp),
 which is ROS- and POSIX-free so the Arduino sketches can include it unchanged.
 
-Four design choices, all aimed at keeping a 100 Hz control loop honest on a Pi:
+Four design choices, all aimed at keeping a 50 Hz control loop honest on a Pi:
 
 1. **Nothing blocks the control loop.** A dedicated reader thread per link owns the fd
    and does the waiting in `poll()`. Decoded frames land in a
