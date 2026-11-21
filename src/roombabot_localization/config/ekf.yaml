@@ -59,7 +59,6 @@ ekf_filter_node:
                     false, false, true,    # vyaw (index 11) stays true -- this is the actual gyro rate, this is what you want
                     false, false, false]   # ax (index 12) -> false, was true. IMU mounting orientation unverified; wheel odom already supplies vx/vy.
 
-      imu0_differential: true
       imu0_pose_use_child_frame: false
 
       # The filter accepts an arbitrary number of inputs from each input message type (nav_msgs/Odometry,
@@ -90,7 +89,6 @@ ekf_filter_node:
       # data is converted to velocity data by differentiating the absolute pose measurements. These velocities are then
       # integrated as usual. NOTE: this only applies to sensors that provide pose measurements; setting differential to true
       # for twist measurements has no effect.
-      odom0_differential: true
       odom0_pose_use_child_frame: false
 
       # [ADVANCED] The process noise covariance matrix can be difficult to tune, and can vary for each application, so it is
